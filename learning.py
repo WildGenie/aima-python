@@ -56,7 +56,7 @@ class DataSet:
         if isinstance(examples, str):
             self.examples = parse_csv(examples)
         elif examples is None:
-            self.examples = parse_csv(open_data(name + '.csv').read())
+            self.examples = parse_csv(open_data(f'{name}.csv').read())
         else:
             self.examples = examples
 
@@ -111,8 +111,9 @@ class DataSet:
         if self.values:
             for a in self.attrs:
                 if example[a] not in self.values[a]:
-                    raise ValueError('Bad value {} for attribute {} in {}'
-                                     .format(example[a], self.attr_names[a], example))
+                    raise ValueError(
+                        f'Bad value {example[a]} for attribute {self.attr_names[a]} in {example}'
+                    )
 
     def attr_num(self, attr):
         """Returns the number used for attr, which can be a name, or -n .. n-1."""
@@ -286,7 +287,7 @@ def cross_validation(learner, dataset, size=None, k=10, trials=1):
     if trials > 1:
         trial_errT = 0
         trial_errV = 0
-        for t in range(trials):
+        for _ in range(trials):
             errT, errV = cross_validation(learner, dataset, size, k, trials)
             trial_errT += errT
             trial_errV += errV
@@ -620,8 +621,7 @@ def NeuralNetLearner(dataset, hidden_layer_sizes=None, learning_rate=0.01, epoch
 
         # hypothesis
         o_nodes = learned_net[-1]
-        prediction = find_max_node(o_nodes)
-        return prediction
+        return find_max_node(o_nodes)
 
     return predict
 
@@ -649,7 +649,9 @@ def BackPropagationLearner(dataset, net, learning_rate, epochs, activation=sigmo
 
     inputs, targets = init_examples(examples, idx_i, idx_t, o_units)
 
-    for epoch in range(epochs):
+    # backward pass
+    h_layers = n_layers - 2
+    for _ in range(epochs):
         # iterate over each example
         for e in range(len(examples)):
             i_val = inputs[e]
@@ -688,8 +690,6 @@ def BackPropagationLearner(dataset, net, learning_rate, epochs, activation=sigmo
             else:
                 return ValueError("Activation function unknown.")
 
-            # backward pass
-            h_layers = n_layers - 2
             for i in range(h_layers, 0, -1):
                 layer = net[i]
                 h_units = len(layer)
@@ -1024,7 +1024,7 @@ def ada_boost(dataset, L, K):
     eps = 1 / (2 * n)
     w = [1 / n] * n
     h, z = [], []
-    for k in range(K):
+    for _ in range(K):
         h_k = L(dataset, w)
         h.append(h_k)
         error = sum(weight for example, weight in zip(examples, w) if example[target] != h_k(example))
@@ -1203,7 +1203,7 @@ def Majority(k, n):
     k random bits followed by a 1 if more than half the bits are 1, else 0.
     """
     examples = []
-    for i in range(n):
+    for _ in range(n):
         bits = [random.choice([0, 1]) for _ in range(k)]
         bits.append(int(sum(bits) > k / 2))
         examples.append(bits)
@@ -1216,7 +1216,7 @@ def Parity(k, n, name='parity'):
     k random bits followed by a 1 if an odd number of bits are 1, else 0.
     """
     examples = []
-    for i in range(n):
+    for _ in range(n):
         bits = [random.choice([0, 1]) for _ in range(k)]
         bits.append(sum(bits) % 2)
         examples.append(bits)
@@ -1231,7 +1231,7 @@ def Xor(n):
 def ContinuousXor(n):
     """2 inputs are chosen uniformly from (0.0 .. 2.0]; output is xor of ints."""
     examples = []
-    for i in range(n):
+    for _ in range(n):
         x, y = [random.uniform(0.0, 2.0) for _ in '12']
         examples.append([x, y, x != y])
     return DataSet(name='continuous xor', examples=examples)
@@ -1249,5 +1249,12 @@ def compare(algorithms=None, datasets=None, k=10, trials=1):
     datasets = datasets or [iris, orings, zoo, restaurant, SyntheticRestaurant(20),
                             Majority(7, 100), Parity(7, 100), Xor(100)]
 
-    print_table([[a.__name__.replace('Learner', '')] + [cross_validation(a, d, k=k, trials=trials) for d in datasets]
-                 for a in algorithms], header=[''] + [d.name[0:7] for d in datasets], numfmt='%.2f')
+    print_table(
+        [
+            [a.__name__.replace('Learner', '')]
+            + [cross_validation(a, d, k=k, trials=trials) for d in datasets]
+            for a in algorithms
+        ],
+        header=[''] + [d.name[:7] for d in datasets],
+        numfmt='%.2f',
+    )

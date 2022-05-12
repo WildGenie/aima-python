@@ -194,7 +194,7 @@ def test_rot13_decoding():
 def test_counting_probability_distribution():
     D = CountingProbDist()
 
-    for i in range(10000):
+    for _ in range(10000):
         D.add(random.choice('123456'))
 
     ps = [D[n] for n in '123456']
@@ -279,7 +279,7 @@ def test_canonicalize():
 
 def test_translate():
     text = 'orange apple lemon '
-    func = lambda x: ('s ' + x) if x == ' ' else x
+    func = lambda x: f's {x}' if x == ' ' else x
 
     assert translate(text, func) == 'oranges  apples  lemons  '
 

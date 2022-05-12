@@ -17,7 +17,7 @@ policy = {(0, 2): east, (1, 2): east, (2, 2): east, (3, 2): None,
 
 def test_PassiveDUEAgent():
     agent = PassiveDUEAgent(policy, sequential_decision_environment)
-    for i in range(200):
+    for _ in range(200):
         run_single_trial(agent, sequential_decision_environment)
         agent.estimate_U()
     # Agent does not always produce same results.
@@ -30,7 +30,7 @@ def test_PassiveDUEAgent():
 
 def test_PassiveADPAgent():
     agent = PassiveADPAgent(policy, sequential_decision_environment)
-    for i in range(100):
+    for _ in range(100):
         run_single_trial(agent, sequential_decision_environment)
 
     # Agent does not always produce same results.
@@ -43,7 +43,7 @@ def test_PassiveADPAgent():
 
 def test_PassiveTDAgent():
     agent = PassiveTDAgent(policy, sequential_decision_environment, alpha=lambda n: 60. / (59 + n))
-    for i in range(200):
+    for _ in range(200):
         run_single_trial(agent, sequential_decision_environment)
 
     # Agent does not always produce same results.
@@ -56,7 +56,7 @@ def test_PassiveTDAgent():
 def test_QLearning():
     q_agent = QLearningAgent(sequential_decision_environment, Ne=5, Rplus=2, alpha=lambda n: 60. / (59 + n))
 
-    for i in range(200):
+    for _ in range(200):
         run_single_trial(q_agent, sequential_decision_environment)
 
     # Agent does not always produce same results.

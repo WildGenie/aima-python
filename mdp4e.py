@@ -34,12 +34,8 @@ class MDP:
 
         self.init = init
 
-        if isinstance(actlist, list):
+        if isinstance(actlist, (list, dict)):
             # if actlist is a list, all states have the same actions
-            self.actlist = actlist
-
-        elif isinstance(actlist, dict):
-            # if actlist is a dict, different actions for each state
             self.actlist = actlist
 
         self.terminals = terminals
@@ -72,17 +68,18 @@ class MDP:
         fixed list of actions, except for terminal states. Override this
         method if you need to specialize by state."""
 
-        if state in self.terminals:
-            return [None]
-        else:
-            return self.actlist
+        return [None] if state in self.terminals else self.actlist
 
     def get_states_from_transitions(self, transitions):
         if isinstance(transitions, dict):
             s1 = set(transitions.keys())
-            s2 = set(tr[1] for actions in transitions.values()
-                     for effects in actions.values()
-                     for tr in effects)
+            s2 = {
+                tr[1]
+                for actions in transitions.values()
+                for effects in actions.values()
+                for tr in effects
+            }
+
             return s1.union(s2)
         else:
             print('Could not retrieve states from transitions')
@@ -105,9 +102,7 @@ class MDP:
         # check that probability distributions for all actions sum to 1
         for s1, actions in self.transitions.items():
             for a in actions.keys():
-                s = 0
-                for o in actions[a]:
-                    s += o[0]
+                s = sum(o[0] for o in actions[a])
                 assert abs(s - 1) < 0.001
 
 
@@ -120,10 +115,7 @@ class MDP2(MDP):
         MDP.__init__(self, init, actlist, terminals, transitions, reward, gamma=gamma)
 
     def T(self, state, action):
-        if action is None:
-            return [(0.0, state)]
-        else:
-            return self.transitions[state][action]
+        return [(0.0, state)] if action is None else self.transitions[state][action]
 
 
 class GridMDP(MDP):
@@ -202,12 +194,14 @@ sequential_decision_environment = GridMDP([[-0.04, -0.04, -0.04, +1],
 
 
 def q_value(mdp, s, a, U):
-    if not a:
-        return mdp.R(s)
-    res = 0
-    for p, s_prime in mdp.T(s, a):
-        res += p * (mdp.R(s) + mdp.gamma * U[s_prime])
-    return res
+    return (
+        sum(
+            p * (mdp.R(s) + mdp.gamma * U[s_prime])
+            for p, s_prime in mdp.T(s, a)
+        )
+        if a
+        else mdp.R(s)
+    )
 
 
 # TODO: DDN in figure 16.4 and 16.5
@@ -242,10 +236,10 @@ def best_policy(mdp, U):
     """Given an MDP and a utility function U, determine the best policy,
     as a mapping from state to action."""
 
-    pi = {}
-    for s in mdp.states:
-        pi[s] = max(mdp.actions(s), key=lambda a: q_value(mdp, s, a, U))
-    return pi
+    return {
+        s: max(mdp.actions(s), key=lambda a: q_value(mdp, s, a, U))
+        for s in mdp.states
+    }
 
 
 def expected_utility(a, s, U, mdp):
@@ -277,7 +271,7 @@ def policy_evaluation(pi, U, mdp, k=20):
     utility, using an approximation (modified policy iteration)."""
 
     R, T, gamma = mdp.R, mdp.T, mdp.gamma
-    for i in range(k):
+    for _ in range(k):
         for s in mdp.states:
             U[s] = R(s) + gamma * sum(p * U[s1] for (p, s1) in T(s, pi[s]))
     return U
@@ -390,12 +384,8 @@ class POMDP(MDP):
         """Find maximum difference between two utility mappings"""
 
         for k, v in U1.items():
-            sum1 = 0
-            for element in U1[k]:
-                sum1 += sum(element)
-            sum2 = 0
-            for element in U2[k]:
-                sum2 += sum(element)
+            sum1 = sum(sum(element) for element in U1[k])
+            sum2 = sum(sum(element) for element in U2[k])
         return abs(sum1 - sum2)
 
 
@@ -408,9 +398,7 @@ class Matrix:
 
         res = []
         for i in range(len(A)):
-            row = []
-            for j in range(len(A[0])):
-                row.append(A[i][j] + B[i][j])
+            row = [A[i][j] + B[i][j] for j in range(len(A[0]))]
             res.append(row)
         return res
 
@@ -429,9 +417,7 @@ class Matrix:
 
         matrix = []
         for i in range(len(B)):
-            row = []
-            for j in range(len(B[0])):
-                row.append(B[i][j] * A[j][i])
+            row = [B[i][j] * A[j][i] for j in range(len(B[0]))]
             matrix.append(row)
 
         return matrix
@@ -460,9 +446,7 @@ def pomdp_value_iteration(pomdp, epsilon=0.1):
         values = [val for action in U for val in U[action]]
         value_matxs = []
         for i in values:
-            for j in values:
-                value_matxs.append([i, j])
-
+            value_matxs.extend([i, j] for j in values)
         U1 = defaultdict(list)
         for action in pomdp.actions:
             for u in value_matxs:
@@ -475,9 +459,12 @@ def pomdp_value_iteration(pomdp, epsilon=0.1):
         U = pomdp.remove_dominated_plans_fast(U1)
         # replace with U = pomdp.remove_dominated_plans(U1) for accurate calculations
 
-        if count > 10:
-            if pomdp.max_difference(U, prev_U) < epsilon * (1 - pomdp.gamma) / pomdp.gamma:
-                return U
+        if (
+            count > 10
+            and pomdp.max_difference(U, prev_U)
+            < epsilon * (1 - pomdp.gamma) / pomdp.gamma
+        ):
+            return U
 
 
 __doc__ += """

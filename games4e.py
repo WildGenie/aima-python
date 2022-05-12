@@ -178,10 +178,7 @@ def alpha_beta_cutoff_search(state, game, d=4, cutoff_test=None, eval_fn=None):
 def monte_carlo_tree_search(state, game, N=1000):
     def select(n):
         """select a leaf node in the tree"""
-        if n.children:
-            return select(max(n.children.keys(), key=ucb))
-        else:
-            return n
+        return select(max(n.children.keys(), key=ucb)) if n.children else n
 
     def expand(n):
         """expand the leaf node by adding all its children states"""
@@ -230,7 +227,7 @@ def query_player(game, state):
     """Make a move by querying standard input."""
     print("current state:")
     game.display(state)
-    print("available moves: {}".format(game.actions(state)))
+    print(f"available moves: {game.actions(state)}")
     print("")
     move = None
     if game.actions(state):
@@ -299,7 +296,7 @@ class Game:
         print(state)
 
     def __repr__(self):
-        return '<{}>'.format(self.__class__.__name__)
+        return f'<{self.__class__.__name__}>'
 
     def play_game(self, *players):
         """Play an n-person, move-alternating game."""
@@ -362,10 +359,7 @@ class Fig52Game(Game):
         return self.succs[state][move]
 
     def utility(self, state, player):
-        if player == 'MAX':
-            return self.utils[state]
-        else:
-            return -self.utils[state]
+        return self.utils[state] if player == 'MAX' else -self.utils[state]
 
     def terminal_test(self, state):
         return state not in ('A', 'B', 'C', 'D')
@@ -387,10 +381,7 @@ class Fig52Extended(Game):
         return self.succs[state][move]
 
     def utility(self, state, player):
-        if player == 'MAX':
-            return self.utils[state]
-        else:
-            return -self.utils[state]
+        return self.utils[state] if player == 'MAX' else -self.utils[state]
 
     def terminal_test(self, state):
         return state not in range(13)
@@ -490,7 +481,7 @@ class Backgammon(StochasticGame):
     def __init__(self):
         """Initial state of the game"""
         point = {'W': 0, 'B': 0}
-        board = [point.copy() for index in range(24)]
+        board = [point.copy() for _ in range(24)]
         board[0]['B'] = board[23]['W'] = 2
         board[5]['W'] = board[18]['B'] = 5
         board[7]['W'] = board[16]['B'] = 3
@@ -542,11 +533,15 @@ class Backgammon(StochasticGame):
         all_points = board
         taken_points = [index for index, point in enumerate(all_points)
                         if point[player] > 0]
-        if self.checkers_at_home(board, player) == 1:
+        if self.checkers_at_home(all_points, player) == 1:
             return [(taken_points[0],)]
         moves = list(itertools.permutations(taken_points, 2))
-        moves = moves + [(index, index) for index, point in enumerate(all_points)
-                         if point[player] >= 2]
+        moves += [
+            (index, index)
+            for index, point in enumerate(all_points)
+            if point[player] >= 2
+        ]
+
         return moves
 
     def display(self, state):
@@ -561,14 +556,11 @@ class Backgammon(StochasticGame):
     def compute_utility(self, board, move, player):
         """If 'W' wins with this move, return 1; if 'B' wins return -1; else return 0."""
         util = {'W': 1, 'B': -1}
-        for idx in range(0, 24):
-            if board[idx][player] > 0:
-                return 0
-        return util[player]
+        return next((0 for idx in range(24) if board[idx][player] > 0), util[player])
 
     def checkers_at_home(self, board, player):
         """Return the no. of checkers at home for a player."""
-        sum_range = range(0, 7) if player == 'W' else range(17, 24)
+        sum_range = range(7) if player == 'W' else range(17, 24)
         count = 0
         for idx in sum_range:
             count = count + board[idx][player]
@@ -580,30 +572,31 @@ class Backgammon(StochasticGame):
 		are open. A bear-off move is the one where a checker is moved off-board.
         It is legal only after a player has moved all his checkers to his home."""
         dest1, dest2 = vector_add(start, steps)
-        dest_range = range(0, 24)
+        dest_range = range(24)
         move1_legal = move2_legal = False
-        if dest1 in dest_range:
-            if self.is_point_open(player, board[dest1]):
-                self.move_checker(board, start[0], steps[0], player)
-                move1_legal = True
-        else:
-            if self.allow_bear_off[player]:
-                self.move_checker(board, start[0], steps[0], player)
-                move1_legal = True
+        if (
+            dest1 in dest_range
+            and self.is_point_open(player, board[dest1])
+            or dest1 not in dest_range
+            and self.allow_bear_off[player]
+        ):
+            self.move_checker(board, start[0], steps[0], player)
+            move1_legal = True
         if not move1_legal:
             return False
-        if dest2 in dest_range:
-            if self.is_point_open(player, board[dest2]):
-                move2_legal = True
-        else:
-            if self.allow_bear_off[player]:
-                move2_legal = True
+        if (
+            dest2 in dest_range
+            and self.is_point_open(player, board[dest2])
+            or dest2 not in dest_range
+            and self.allow_bear_off[player]
+        ):
+            move2_legal = True
         return move1_legal and move2_legal
 
     def move_checker(self, board, start, steps, player):
         """Move a checker from starting point by a given number of steps"""
         dest = start + steps
-        dest_range = range(0, 24)
+        dest_range = range(24)
         board[start][player] -= 1
         if dest in dest_range:
             board[dest][player] += 1
@@ -619,8 +612,7 @@ class Backgammon(StochasticGame):
 
     def chances(self, state):
         """Return a list of all possible dice rolls at a state."""
-        dice_rolls = list(itertools.combinations_with_replacement([1, 2, 3, 4, 5, 6], 2))
-        return dice_rolls
+        return list(itertools.combinations_with_replacement([1, 2, 3, 4, 5, 6], 2))
 
     def outcome(self, state, chance):
         """Return the state which is the outcome of a dice roll."""

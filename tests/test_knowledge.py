@@ -79,12 +79,7 @@ def test_version_space_learning():
     V = version_space_learning(party)
     results = []
     for e in party:
-        guess = False
-        for h in V:
-            if guess_value(e, h):
-                guess = True
-                break
-
+        guess = any(guess_value(e, h) for h in V)
         results.append(guess)
 
     assert results == [True, True, False]
@@ -178,7 +173,10 @@ def test_extend_example():
     with each possible constant value for each new variable in literal.)
     """
     assert len(list(small_family.extend_example({x: expr('Andrew')}, expr('Father(x, y)')))) == 2
-    assert len(list(small_family.extend_example({x: expr('Andrew')}, expr('Mother(x, y)')))) == 0
+    assert not list(
+        small_family.extend_example({x: expr('Andrew')}, expr('Mother(x, y)'))
+    )
+
     assert len(list(small_family.extend_example({x: expr('Andrew')}, expr('Female(y)')))) == 6
 
 

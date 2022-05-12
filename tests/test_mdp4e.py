@@ -145,10 +145,7 @@ def test_pomdp_value_iteration():
     utility = pomdp_value_iteration(pomdp, epsilon=5)
 
     for _, v in utility.items():
-        sum_ = 0
-        for element in v:
-            sum_ += sum(element)
-
+        sum_ = sum(sum(element) for element in v)
     assert -9.76 < sum_ < -9.70 or 246.5 < sum_ < 248.5 or 0 < sum_ < 1
 
 
@@ -165,10 +162,7 @@ def test_pomdp_value_iteration2():
     utility = pomdp_value_iteration(pomdp, epsilon=100)
 
     for _, v in utility.items():
-        sum_ = 0
-        for element in v:
-            sum_ += sum(element)
-
+        sum_ = sum(sum(element) for element in v)
     assert -77.31 < sum_ < -77.25 or 799 < sum_ < 800
 
 

@@ -141,7 +141,12 @@ def test_dpll_satisfiable():
                             (B | ~C | D) & (A | ~E | F) & (~A | E | D)) == \
            {B: False, C: True, A: True, F: False, D: True, E: False}
     assert dpll_satisfiable(A & B & ~C & D) == {C: False, A: True, D: True, B: True}
-    assert dpll_satisfiable((A | (B & C)) | '<=>' | ((A | B) & (A | C))) == {C: True, A: True} or {C: True, B: True}
+    assert (
+        dpll_satisfiable((A | (B & C)) | '<=>' | ((A | B) & (A | C)))
+        == {C: True, A: True}
+        or True
+    )
+
     assert dpll_satisfiable(A | '<=>' | B) == {A: True, B: True}
     assert dpll_satisfiable(A & ~B) == {A: True, B: False}
     assert dpll_satisfiable(P & ~P) is False
@@ -152,7 +157,12 @@ def test_cdcl_satisfiable():
                             (B | ~C | D) & (A | ~E | F) & (~A | E | D)) == \
            {B: False, C: True, A: True, F: False, D: True, E: False}
     assert cdcl_satisfiable(A & B & ~C & D) == {C: False, A: True, D: True, B: True}
-    assert cdcl_satisfiable((A | (B & C)) | '<=>' | ((A | B) & (A | C))) == {C: True, A: True} or {C: True, B: True}
+    assert (
+        cdcl_satisfiable((A | (B & C)) | '<=>' | ((A | B) & (A | C)))
+        == {C: True, A: True}
+        or True
+    )
+
     assert cdcl_satisfiable(A | '<=>' | B) == {A: True, B: True}
     assert cdcl_satisfiable(A & ~B) == {A: True, B: False}
     assert cdcl_satisfiable(P & ~P) is False
@@ -318,8 +328,13 @@ def test_fol_bc_ask():
     def test_ask(query, kb=None):
         q = expr(query)
         answers = fol_bc_ask(kb or test_kb, q)
-        return sorted([dict((x, v) for x, v in list(a.items()) if x in variables(q))
-                       for a in answers], key=repr)
+        return sorted(
+            [
+                {x: v for x, v in list(a.items()) if x in variables(q)}
+                for a in answers
+            ],
+            key=repr,
+        )
 
     assert repr(test_ask('Farmer(x)')) == '[{x: Mac}]'
     assert repr(test_ask('Human(x)')) == '[{x: Mac}, {x: MrsMac}]'
@@ -331,8 +346,13 @@ def test_fol_fc_ask():
     def test_ask(query, kb=None):
         q = expr(query)
         answers = fol_fc_ask(kb or test_kb, q)
-        return sorted([dict((x, v) for x, v in list(a.items()) if x in variables(q))
-                       for a in answers], key=repr)
+        return sorted(
+            [
+                {x: v for x, v in list(a.items()) if x in variables(q)}
+                for a in answers
+            ],
+            key=repr,
+        )
 
     assert repr(test_ask('Criminal(x)', crime_kb)) == '[{x: West}]'
     assert repr(test_ask('Enemy(x, America)', crime_kb)) == '[{x: Nono}]'
@@ -351,8 +371,7 @@ def test_WalkSAT():
         # Sometimes WalkSat may run out of flips before finding a solution
         if single_solution is None:
             single_solution = {}
-        sol = WalkSAT(clauses)
-        if sol:
+        if sol := WalkSAT(clauses):
             assert all(pl_true(x, sol) for x in clauses)
             if single_solution:  # Cross check the solution if only one exists
                 assert all(pl_true(x, single_solution) for x in clauses)

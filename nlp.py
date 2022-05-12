@@ -55,9 +55,7 @@ class Grammar:
         X -> Y Z"""
         cnf = []
         for X, rules in self.rules.items():
-            for (Y, Z) in rules:
-                cnf.append((X, Y, Z))
-
+            cnf.extend((X, Y, Z) for (Y, Z) in rules)
         return cnf
 
     def generate_random(self, S='S'):
@@ -77,7 +75,7 @@ class Grammar:
         return ' '.join(rewrite(S.split(), []))
 
     def __repr__(self):
-        return '<Grammar {}>'.format(self.name)
+        return f'<Grammar {self.name}>'
 
 
 def ProbRules(**rules):
@@ -142,9 +140,7 @@ class ProbGrammar:
         X -> Y Z [p]"""
         cnf = []
         for X, rules in self.rules.items():
-            for (Y, Z), p in rules:
-                cnf.append((X, Y, Z, p))
-
+            cnf.extend((X, Y, Z, p) for (Y, Z), p in rules)
         return cnf
 
     def generate_random(self, S='S'):
@@ -170,7 +166,7 @@ class ProbGrammar:
         return (' '.join(rewritten_as), prob)
 
     def __repr__(self):
-        return '<Grammar {}>'.format(self.name)
+        return f'<Grammar {self.name}>'
 
 
 E0 = Grammar('E0',
@@ -309,7 +305,7 @@ class Chart:
     def parse(self, words, S='S'):
         """Parse a list of words; according to the grammar.
         Leave results in the chart."""
-        self.chart = [[] for i in range(len(words) + 1)]
+        self.chart = [[] for _ in range(len(words) + 1)]
         self.add_edge([0, 0, 'S_', [], [S]])
         for i in range(len(words)):
             self.scanner(i, words[i])
@@ -321,7 +317,7 @@ class Chart:
         if edge not in self.chart[end]:
             self.chart[end].append(edge)
             if self.trace:
-                print('Chart: added {}'.format(edge))
+                print(f'Chart: added {edge}')
             if not expects:
                 self.extender(edge)
             else:
@@ -406,10 +402,7 @@ def loadPageHTML(addressList):
 
 def initPages(addressList):
     """Create a dictionary of pages from a list of URL addresses"""
-    pages = {}
-    for addr in addressList:
-        pages[addr] = Page(addr)
-    return pages
+    return {addr: Page(addr) for addr in addressList}
 
 
 def stripRawHTML(raw_html):
@@ -443,7 +436,7 @@ def onlyWikipediaURLS(urls):
     """Some example HTML page data is from wikipedia. This function converts
     relative wikipedia links to full wikipedia URLs"""
     wikiURLs = [url for url in urls if url.startswith('/wiki/')]
-    return ["https://en.wikipedia.org" + url for url in wikiURLs]
+    return [f"https://en.wikipedia.org{url}" for url in wikiURLs]
 
 
 # ______________________________________________________________________________
@@ -468,13 +461,15 @@ def expand_pages(pages):
 def relevant_pages(query):
     """Relevant pages are pages that contain all of the query words. They are obtained by
     intersecting the hit lists of the query words."""
-    hit_intersection = {addr for addr in pagesIndex}
+    hit_intersection = set(pagesIndex)
     query_words = query.split()
     for query_word in query_words:
-        hit_list = set()
-        for addr in pagesIndex:
-            if query_word.lower() in pagesContent[addr].lower():
-                hit_list.add(addr)
+        hit_list = {
+            addr
+            for addr in pagesIndex
+            if query_word.lower() in pagesContent[addr].lower()
+        }
+
         hit_intersection = hit_intersection.intersection(hit_list)
     return {addr: pagesIndex[addr] for addr in hit_intersection}
 
@@ -517,8 +512,8 @@ class ConvergenceDetector(object):
         if len(self.hub_history) > 2:  # prevent list from getting long
             del self.hub_history[0]
             del self.auth_history[0]
-        self.hub_history.append([x for x in curr_hubs])
-        self.auth_history.append([x for x in curr_auths])
+        self.hub_history.append(list(curr_hubs))
+        self.auth_history.append(list(curr_auths))
         return False
 
 

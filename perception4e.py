@@ -39,8 +39,7 @@ def gradient_edge_detector(image):
     # convolution between filter and image to get edges
     y_edges = scipy.signal.convolve2d(image, x_filter, 'same')
     x_edges = scipy.signal.convolve2d(image, y_filter, 'same')
-    edges = array_normalization(x_edges + y_edges, 0, 255)
-    return edges
+    return array_normalization(x_edges + y_edges, 0, 255)
 
 
 def gaussian_derivative_edge_detector(image):
@@ -54,8 +53,7 @@ def gaussian_derivative_edge_detector(image):
     # extract edges using convolution
     y_edges = scipy.signal.convolve2d(image, x_filter, 'same')
     x_edges = scipy.signal.convolve2d(image, y_filter, 'same')
-    edges = array_normalization(x_edges + y_edges, 0, 255)
-    return edges
+    return array_normalization(x_edges + y_edges, 0, 255)
 
 
 def laplacian_edge_detector(image):
@@ -140,8 +138,8 @@ def probability_contour_detection(image, discs, threshold=0):
     # init an empty output image
     res = np.zeros(image.shape)
     step = discs[0].shape[0]
-    for x_i in range(0, image.shape[0] - step + 1, 1):
-        for y_i in range(0, image.shape[1] - step + 1, 1):
+    for x_i in range(image.shape[0] - step + 1):
+        for y_i in range(image.shape[1] - step + 1):
             diff = []
             # apply each pair of discs and calculate the difference
             for d in range(0, len(discs), 2):
@@ -169,12 +167,11 @@ def group_contour_detection(image, cluster_num=2):
     ret, label, center = cv2.kmeans(Z, K, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
     center = np.uint8(center)
     res = center[label.flatten()]
-    res2 = res.reshape(img.shape)
     # show the image
     # cv2.imshow('res2', res2)
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
-    return res2
+    return res.reshape(img.shape)
 
 
 def image_to_graph(image):
@@ -233,7 +230,7 @@ class Graph:
                     queue.append(node)
                     visited.append(node)
                     parent.append((u, node))
-        return True if t in visited else False
+        return t in visited
 
     def min_cut(self, source, sink):
         """Find the minimum cut of the graph between source and sink"""
@@ -256,9 +253,13 @@ class Graph:
             parent = []
         res = []
         for i in self.flow:
-            for j in self.flow[i]:
-                if self.flow[i][j] == 0 and generate_edge_weight(self.image, i, j) > 0:
-                    res.append((i, j))
+            res.extend(
+                (i, j)
+                for j in self.flow[i]
+                if self.flow[i][j] == 0
+                and generate_edge_weight(self.image, i, j) > 0
+            )
+
         return res
 
 

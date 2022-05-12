@@ -25,10 +25,7 @@ def scramble():
     global state
     global puzzle
     possible_actions = ['UP', 'DOWN', 'LEFT', 'RIGHT']
-    scramble = []
-    for _ in range(60):
-        scramble.append(random.choice(possible_actions))
-
+    scramble = [random.choice(possible_actions) for _ in range(60)]
     for move in scramble:
         if move in puzzle.actions(state):
             state = list(puzzle.result(state, move))

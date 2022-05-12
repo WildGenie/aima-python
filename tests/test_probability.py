@@ -165,7 +165,7 @@ def test_elimination_ask():
 
 def test_prior_sample():
     random.seed(42)
-    all_obs = [prior_sample(burglary) for x in range(1000)]
+    all_obs = [prior_sample(burglary) for _ in range(1000)]
     john_calls_true = [observation for observation in all_obs if observation['JohnCalls']]
     mary_calls_true = [observation for observation in all_obs if observation['MaryCalls']]
     burglary_and_john = [observation for observation in john_calls_true if observation['Burglary']]
@@ -178,13 +178,13 @@ def test_prior_sample():
 
 def test_prior_sample2():
     random.seed(128)
-    all_obs = [prior_sample(sprinkler) for x in range(1000)]
+    all_obs = [prior_sample(sprinkler) for _ in range(1000)]
     rain_true = [observation for observation in all_obs if observation['Rain']]
     sprinkler_true = [observation for observation in all_obs if observation['Sprinkler']]
     rain_and_cloudy = [observation for observation in rain_true if observation['Cloudy']]
     sprinkler_and_cloudy = [observation for observation in sprinkler_true if observation['Cloudy']]
-    assert len(rain_true) / 1000 == 0.476
-    assert len(sprinkler_true) / 1000 == 0.291
+    assert len(rain_true) == 0.476 * 1000
+    assert len(sprinkler_true) == 0.291 * 1000
     assert len(rain_and_cloudy) / len(rain_true) == 376 / 476
     assert len(sprinkler_and_cloudy) / len(sprinkler_true) == 39 / 291
 

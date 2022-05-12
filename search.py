@@ -86,7 +86,7 @@ class Node:
             self.depth = parent.depth + 1
 
     def __repr__(self):
-        return "<Node {}>".format(self.state)
+        return f"<Node {self.state}>"
 
     def __lt__(self, node):
         return self.state < node.state
@@ -99,8 +99,12 @@ class Node:
     def child_node(self, problem, action):
         """[Figure 3.10]"""
         next_state = problem.result(self.state, action)
-        next_node = Node(next_state, self, action, problem.path_cost(self.path_cost, self.state, action, next_state))
-        return next_node
+        return Node(
+            next_state,
+            self,
+            action,
+            problem.path_cost(self.path_cost, self.state, action, next_state),
+        )
 
     def solution(self):
         """Return the sequence of actions to go from the root to this node."""
@@ -154,8 +158,8 @@ class SimpleProblemSolvingAgentProgram:
             goal = self.formulate_goal(self.state)
             problem = self.formulate_problem(self.state, goal)
             self.seq = self.search(problem)
-            if not self.seq:
-                return None
+        if not self.seq:
+            return None
         return self.seq.pop(0)
 
     def update_state(self, state, percept):
@@ -377,10 +381,9 @@ def bidirectional_search(problem):
         node = Node(-1)
         for n in open_dir:
             pr = max(g[n] + problem.h(n), 2 * g[n])
-            if pr == pr_min:
-                if g[n] < m:
-                    m = g[n]
-                    node = n
+            if pr == pr_min and g[n] < m:
+                m = g[n]
+                node = n
 
         return node
 
@@ -516,18 +519,22 @@ class PlanRoute(Problem):
         orientation = state.get_orientation()
 
         # Prevent Bumps
-        if x == 1 and orientation == 'LEFT':
-            if 'Forward' in possible_actions:
-                possible_actions.remove('Forward')
-        if y == 1 and orientation == 'DOWN':
-            if 'Forward' in possible_actions:
-                possible_actions.remove('Forward')
-        if x == self.dimrow and orientation == 'RIGHT':
-            if 'Forward' in possible_actions:
-                possible_actions.remove('Forward')
-        if y == self.dimrow and orientation == 'UP':
-            if 'Forward' in possible_actions:
-                possible_actions.remove('Forward')
+        if x == 1 and orientation == 'LEFT' and 'Forward' in possible_actions:
+            possible_actions.remove('Forward')
+        if y == 1 and orientation == 'DOWN' and 'Forward' in possible_actions:
+            possible_actions.remove('Forward')
+        if (
+            x == self.dimrow
+            and orientation == 'RIGHT'
+            and 'Forward' in possible_actions
+        ):
+            possible_actions.remove('Forward')
+        if (
+            y == self.dimrow
+            and orientation == 'UP'
+            and 'Forward' in possible_actions
+        ):
+            possible_actions.remove('Forward')
 
         return possible_actions
 
@@ -535,7 +542,7 @@ class PlanRoute(Problem):
         """ Given state and action, return a new state that is the result of the action.
         Action is assumed to be a valid action in the state """
         x, y = state.get_location()
-        proposed_loc = list()
+        proposed_loc = []
 
         # Move Forward
         if action == 'Forward':
@@ -618,10 +625,7 @@ def recursive_best_first_search(problem, h=None):
             best = successors[0]
             if best.f > flimit:
                 return None, best.f
-            if len(successors) > 1:
-                alternative = successors[1].f
-            else:
-                alternative = np.inf
+            alternative = successors[1].f if len(successors) > 1 else np.inf
             result, best.f = RBFS(problem, best, min(flimit, alternative))
             if result is not None:
                 return result, best.f
@@ -729,8 +733,12 @@ def and_or_graph_search(problem):
 
 # Pre-defined actions for PeakFindingProblem
 directions4 = {'W': (-1, 0), 'N': (0, 1), 'E': (1, 0), 'S': (0, -1)}
-directions8 = dict(directions4)
-directions8.update({'NW': (-1, 1), 'NE': (1, 1), 'SE': (1, -1), 'SW': (-1, -1)})
+directions8 = directions4 | {
+    'NW': (-1, 1),
+    'NE': (1, 1),
+    'SE': (1, -1),
+    'SW': (-1, -1),
+}
 
 
 class PeakFindingProblem(Problem):
@@ -781,8 +789,8 @@ class OnlineDFSAgent:
         self.problem = problem
         self.s = None
         self.a = None
-        self.untried = dict()
-        self.unbacktracked = dict()
+        self.untried = {}
+        self.unbacktracked = {}
         self.result = {}
 
     def __call__(self, percept):
@@ -792,10 +800,9 @@ class OnlineDFSAgent:
         else:
             if s1 not in self.untried.keys():
                 self.untried[s1] = self.problem.actions(s1)
-            if self.s is not None:
-                if s1 != self.result[(self.s, self.a)]:
-                    self.result[(self.s, self.a)] = s1
-                    self.unbacktracked[s1].insert(0, self.s)
+            if self.s is not None and s1 != self.result[(self.s, self.a)]:
+                self.result[(self.s, self.a)] = s1
+                self.unbacktracked[s1].insert(0, self.s)
             if len(self.untried[s1]) == 0:
                 if len(self.unbacktracked[s1]) == 0:
                     self.a = None
@@ -848,9 +855,7 @@ class OnlineSearchProblem(Problem):
         raise NotImplementedError
 
     def goal_test(self, state):
-        if state == self.goal:
-            return True
-        return False
+        return state == self.goal
 
 
 class LRTAStarAgent:
@@ -871,7 +876,6 @@ class LRTAStarAgent:
     def __call__(self, s1):  # as of now s1 is a state rather than a percept
         if self.problem.goal_test(s1):
             self.a = None
-            return self.a
         else:
             if s1 not in self.H:
                 self.H[s1] = self.problem.h(s1)
@@ -887,7 +891,8 @@ class LRTAStarAgent:
                          key=lambda b: self.LRTA_cost(s1, b, self.problem.output(s1, b), self.H))
 
             self.s = s1
-            return self.a
+
+        return self.a
 
     def LRTA_cost(self, s, a, s1, H):
         """Returns cost to move from state 's' to state 's1' plus
@@ -895,13 +900,12 @@ class LRTAStarAgent:
         print(s, a, s1)
         if s1 is None:
             return self.problem.h(s)
-        else:
-            # sometimes we need to get H[s1] which we haven't yet added to H
-            # to replace this try, except: we can initialize H with values from problem.h
-            try:
-                return self.problem.c(s, a, s1) + self.H[s1]
-            except:
-                return self.problem.c(s, a, s1) + self.problem.h(s1)
+        # sometimes we need to get H[s1] which we haven't yet added to H
+        # to replace this try, except: we can initialize H with values from problem.h
+        try:
+            return self.problem.c(s, a, s1) + self.H[s1]
+        except:
+            return self.problem.c(s, a, s1) + self.problem.h(s1)
 
 
 # ______________________________________________________________________________
@@ -924,12 +928,18 @@ def genetic_search(problem, ngen=1000, pmut=0.1, n=20):
 
 def genetic_algorithm(population, fitness_fn, gene_pool=[0, 1], f_thres=None, ngen=1000, pmut=0.1):
     """[Figure 4.8]"""
-    for i in range(ngen):
-        population = [mutate(recombine(*select(2, population, fitness_fn)), gene_pool, pmut)
-                      for i in range(len(population))]
+    for _ in range(ngen):
+        population = [
+            mutate(
+                recombine(*select(2, population, fitness_fn)), gene_pool, pmut
+            )
+            for _ in range(len(population))
+        ]
 
-        fittest_individual = fitness_threshold(fitness_fn, f_thres, population)
-        if fittest_individual:
+
+        if fittest_individual := fitness_threshold(
+            fitness_fn, f_thres, population
+        ):
             return fittest_individual
 
     return max(population, key=fitness_fn)
@@ -953,8 +963,11 @@ def init_population(pop_number, gene_pool, state_length):
     state_length:  The length of each individual"""
     g = len(gene_pool)
     population = []
-    for i in range(pop_number):
-        new_individual = [gene_pool[random.randrange(0, g)] for j in range(state_length)]
+    for _ in range(pop_number):
+        new_individual = [
+            gene_pool[random.randrange(0, g)] for _ in range(state_length)
+        ]
+
         population.append(new_individual)
 
     return population
@@ -963,7 +976,7 @@ def init_population(pop_number, gene_pool, state_length):
 def select(r, population, fitness_fn):
     fitnesses = map(fitness_fn, population)
     sampler = weighted_sampler(population, fitnesses)
-    return [sampler() for i in range(r)]
+    return [sampler() for _ in range(r)]
 
 
 def recombine(x, y):
@@ -1045,15 +1058,12 @@ class Graph:
         .get(a,b) returns the distance or None;
         .get(a) returns a dict of {node: distance} entries, possibly {}."""
         links = self.graph_dict.setdefault(a, {})
-        if b is None:
-            return links
-        else:
-            return links.get(b)
+        return links if b is None else links.get(b)
 
     def nodes(self):
         """Return a list of nodes in the graph."""
-        s1 = set([k for k in self.graph_dict.keys()])
-        s2 = set([k2 for v in self.graph_dict.values() for k2, v2 in v.items()])
+        s1 = set(list(self.graph_dict.keys()))
+        s2 = {k2 for v in self.graph_dict.values() for k2, v2 in v.items()}
         nodes = s1.union(s2)
         return list(nodes)
 
@@ -1205,8 +1215,7 @@ class GraphProblem(Problem):
 
     def h(self, node):
         """h function is straight-line distance from a node's state to goal."""
-        locs = getattr(self.graph, 'locations', None)
-        if locs:
+        if locs := getattr(self.graph, 'locations', None):
             if type(node) is str:
                 return int(distance(locs[node], locs[self.goal]))
 
@@ -1252,10 +1261,9 @@ class NQueensProblem(Problem):
         """In the leftmost empty column, try all non-conflicting rows."""
         if state[-1] != -1:
             return []  # All columns filled; no successors
-        else:
-            col = state.index(-1)
-            return [row for row in range(self.N)
-                    if not self.conflicted(state, row, col)]
+        col = state.index(-1)
+        return [row for row in range(self.N)
+                if not self.conflicted(state, row, col)]
 
     def result(self, state, row):
         """Place the next queen at the given row."""
@@ -1333,7 +1341,7 @@ def print_boggle(board):
         if board[i] == 'Q':
             print('Qu', end=' ')
         else:
-            print(str(board[i]) + ' ', end=' ')
+            print(f'{str(board[i])} ', end=' ')
     print()
 
 
@@ -1373,7 +1381,7 @@ def boggle_neighbors(n2, cache={}):
 def exact_sqrt(n2):
     """If n2 is a perfect square, return its square root, else raise error."""
     n = int(np.sqrt(n2))
-    assert n * n == n2
+    assert n**2 == n2
     return n
 
 
@@ -1470,7 +1478,7 @@ class BoggleFinder:
 
     def score(self):
         """The total score for the words found, according to the rules."""
-        return sum([self.scores[len(w)] for w in self.words()])
+        return sum(self.scores[len(w)] for w in self.words())
 
     def __len__(self):
         """The number of words found."""

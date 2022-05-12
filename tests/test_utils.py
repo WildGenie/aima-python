@@ -38,7 +38,7 @@ def test_count():
     assert count([1, 2, 3, 4, 2, 3, 4]) == 7
     assert count("aldpeofmhngvia") == 14
     assert count([True, False, True, True, False]) == 3
-    assert count([5 > 1, len("abc") == 3, 3 + 1 == 5]) == 2
+    assert count([5 > 1, len("abc") == 3, 3 == 4]) == 2
     assert count("aima") == 4
 
 
@@ -186,7 +186,7 @@ def test_weighted_choice():
 
 
 def compare_list(x, y):
-    return all([elm_x == y[i] for i, elm_x in enumerate(x)])
+    return all(elm_x == y[i] for i, elm_x in enumerate(x))
 
 
 def test_distance():

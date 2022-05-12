@@ -54,10 +54,11 @@ def test_generation():
 
     sentence = grammar.generate_random('S')
     for token in sentence.split():
-        found = False
-        for non_terminal, terminals in grammar.lexicon.items():
-            if token in terminals:
-                found = True
+        found = any(
+            token in terminals
+            for non_terminal, terminals in grammar.lexicon.items()
+        )
+
         assert found
 
 
@@ -184,9 +185,9 @@ def test_stripRawHTML(html_mock):
 
 
 def test_determineInlinks():
-    assert set(determineInlinks(pA)) == set(['B', 'C', 'E'])
+    assert set(determineInlinks(pA)) == {'B', 'C', 'E'}
     assert set(determineInlinks(pE)) == set([])
-    assert set(determineInlinks(pF)) == set(['E'])
+    assert set(determineInlinks(pF)) == {'E'}
 
 
 def test_findOutlinks_wiki():

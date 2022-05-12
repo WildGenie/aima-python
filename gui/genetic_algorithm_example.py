@@ -45,8 +45,7 @@ punctuations3 = [chr(x) for x in range(91, 97)]
 numerals = [chr(x) for x in range(48, 58)]  # list containing numbers
 
 # extend the gene pool with the required lists and append the space character
-gene_pool = []
-gene_pool.extend(u_case)
+gene_pool = list(u_case)
 gene_pool.extend(l_case)
 gene_pool.append(' ')
 
@@ -74,14 +73,9 @@ def update_ngen(slider_value):
 
 # fitness function
 def fitness_fn(_list):
-    fitness = 0
     # create string from list of characters
     phrase = ''.join(_list)
-    # add 1 to fitness value for every matching character
-    for i in range(len(phrase)):
-        if target[i] == phrase[i]:
-            fitness += 1
-    return fitness
+    return sum(target[i] == phrase[i] for i in range(len(phrase)))
 
 
 # function to bring a new frame on top
@@ -147,8 +141,14 @@ def genetic_algorithm_stepwise(population):
     for generation in range(ngen):
         # generating new population after selecting, recombining and mutating the existing population
         population = [
-            search.mutate(search.recombine(*search.select(2, population, fitness_fn)), gene_pool, mutation_rate) for i
-            in range(len(population))]
+            search.mutate(
+                search.recombine(*search.select(2, population, fitness_fn)),
+                gene_pool,
+                mutation_rate,
+            )
+            for _ in range(len(population))
+        ]
+
         # genome with the highest fitness in the current generation
         current_best = ''.join(max(population, key=fitness_fn))
         # collecting first few examples from the current population

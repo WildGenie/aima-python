@@ -47,7 +47,7 @@ class Gui(VacuumEnvironment):
     def create_walls(self):
         """Creates the outer boundary walls which do not move."""
         for row, button_row in enumerate(self.buttons):
-            if row == 0 or row == len(self.buttons) - 1:
+            if row in [0, len(self.buttons) - 1]:
                 for button in button_row:
                     button.config(text='W', state='disabled',
                                   disabledforeground='black')
@@ -75,8 +75,7 @@ class Gui(VacuumEnvironment):
         """Determines the action the agent performs."""
         xi, yi = (self.xi, self.yi)
         if action == 'Suck':
-            dirt_list = self.list_things_at(agent.location, Dirt)
-            if dirt_list:
+            if dirt_list := self.list_things_at(agent.location, Dirt):
                 dirt = dirt_list[0]
                 agent.performance += 100
                 self.delete_thing(dirt)
@@ -106,7 +105,10 @@ class Gui(VacuumEnvironment):
         """Reads the current state of the GUI environment."""
         for i, btn_row in enumerate(self.buttons):
             for j, btn in enumerate(btn_row):
-                if (i != 0 and i != len(self.buttons) - 1) and (j != 0 and j != len(btn_row) - 1):
+                if i not in [0, len(self.buttons) - 1] and j not in [
+                    0,
+                    len(btn_row) - 1,
+                ]:
                     agt_loc = self.agents[0].location
                     if self.some_things_at((i, j)) and (i, j) != agt_loc:
                         for thing in self.list_things_at((i, j)):
@@ -130,11 +132,14 @@ class Gui(VacuumEnvironment):
         self.read_env()
         for i, btn_row in enumerate(self.buttons):
             for j, btn in enumerate(btn_row):
-                if (i != 0 and i != len(self.buttons) - 1) and (j != 0 and j != len(btn_row) - 1):
-                    if self.some_things_at((i, j)):
-                        for thing in self.list_things_at((i, j)):
-                            self.delete_thing(thing)
-                            btn.config(text='', state='normal')
+                if (
+                    i not in [0, len(self.buttons) - 1]
+                    and j not in [0, len(btn_row) - 1]
+                    and self.some_things_at((i, j))
+                ):
+                    for thing in self.list_things_at((i, j)):
+                        self.delete_thing(thing)
+                        btn.config(text='', state='normal')
         self.add_thing(agt, location=(3, 3))
         self.buttons[3][3].config(
             text='A', state='disabled', disabledforeground='black')

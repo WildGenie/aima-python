@@ -31,7 +31,7 @@ class UnigramWordModel(CountingProbDist):
 
     def samples(self, n):
         """Return a string of n words, random according to the model."""
-        return ' '.join(self.sample() for i in range(n))
+        return ' '.join(self.sample() for _ in range(n))
 
 
 class NgramWordModel(CountingProbDist):
@@ -74,7 +74,7 @@ class NgramWordModel(CountingProbDist):
         n = self.n
         output = list(self.sample())
 
-        for i in range(n, nwords):
+        for _ in range(n, nwords):
             last = output[-n + 1:]
             next_word = self.cond_prob[tuple(last)].sample()
             output.append(next_word)
@@ -86,7 +86,7 @@ class NgramCharModel(NgramWordModel):
     def add_sequence(self, words):
         """Add an empty space to every word to catch the beginning of words."""
         for word in words:
-            super().add_sequence(' ' + word)
+            super().add_sequence(f' {word}')
 
 
 class UnigramCharModel(NgramCharModel):
@@ -115,7 +115,7 @@ def viterbi_segment(text, P):
     best = [1.0] + [0.0] * n
     # Fill in the vectors best words via dynamic programming
     for i in range(n + 1):
-        for j in range(0, i):
+        for j in range(i):
             w = text[j:i]
             curr_score = P[w] * best[i - len(w)]
             if curr_score >= best[i]:
@@ -275,18 +275,12 @@ def rot13(plaintext):
 
 def translate(plaintext, function):
     """Translate chars of a plaintext with the given function."""
-    result = ""
-    for char in plaintext:
-        result += function(char)
-    return result
+    return "".join(function(char) for char in plaintext)
 
 
 def maketrans(from_, to_):
     """Create a translation table and return the proper function."""
-    trans_table = {}
-    for n, char in enumerate(from_):
-        trans_table[char] = to_[n]
-
+    trans_table = {char: to_[n] for n, char in enumerate(from_)}
     return lambda char: trans_table.get(char, char)
 
 
