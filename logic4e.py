@@ -121,7 +121,7 @@ def KB_AgentProgram(KB):
         return Expr("Percept")(percept, t)
 
     def make_action_query(t):
-        return expr("ShouldDo(action, {})".format(t))
+        return expr(f"ShouldDo(action, {t})")
 
     def make_action_sentence(action, t):
         return Expr("Did")(action[expr('action')], t)
@@ -217,10 +217,7 @@ def ok_to_move(x, y, time):
 
 
 def location(x, y, time=None):
-    if time is None:
-        return Expr('L', x, y)
-    else:
-        return Expr('L', x, y, time)
+    return Expr('L', x, y) if time is None else Expr('L', x, y, time)
 
 
 # Symbols
@@ -303,9 +300,8 @@ def parse_definite_clause(s):
     assert is_definite_clause(s)
     if is_symbol(s.op):
         return [], s
-    else:
-        antecedent, consequent = s.args
-        return conjuncts(antecedent), consequent
+    antecedent, consequent = s.args
+    return conjuncts(antecedent), consequent
 
 
 # Useful constant Exprs used in examples and code:
@@ -332,12 +328,11 @@ def tt_entails(kb, alpha):
 def tt_check_all(kb, alpha, symbols, model):
     """Auxiliary routine to implement tt_entails."""
     if not symbols:
-        if pl_true(kb, model):
-            result = pl_true(alpha, model)
-            assert result in (True, False)
-            return result
-        else:
+        if not pl_true(kb, model):
             return True
+        result = pl_true(alpha, model)
+        assert result in (True, False)
+        return result
     else:
         P, rest = symbols[0], symbols[1:]
         return (tt_check_all(kb, alpha, rest, extend(model, P, True)) and
@@ -401,10 +396,7 @@ def pl_true(exp, model={}):
         return model.get(exp)
     elif op == '~':
         p = pl_true(args[0], model)
-        if p is None:
-            return None
-        else:
-            return not p
+        return None if p is None else not p
     elif op == '|':
         result = False
         for arg in args:
@@ -439,7 +431,7 @@ def pl_true(exp, model={}):
     elif op == '^':  # xor or 'not equivalent'
         return pt != qt
     else:
-        raise ValueError("illegal operator in logic expression" + str(exp))
+        raise ValueError(f"illegal operator in logic expression{str(exp)}")
 
 
 # ______________________________________________________________________________
@@ -793,12 +785,9 @@ def unit_clause_assign(clause, model):
     P, value = None, None
     for literal in disjuncts(clause):
         sym, positive = inspect_literal(literal)
-        if sym in model:
-            if model[sym] == positive:
-                return None, None  # clause already True
-        elif P:
-            return None, None  # more than 1 unbound variable
-        else:
+        if sym in model and model[sym] == positive or sym not in model and P:
+            return None, None  # clause already True
+        elif sym not in model:
             P, value = sym, positive
     return P, value
 
@@ -811,10 +800,7 @@ def inspect_literal(literal):
     >>> inspect_literal(~P)
     (P, False)
     """
-    if literal.op == '~':
-        return literal.args[0], False
-    else:
-        return literal, True
+    return (literal.args[0], False) if literal.op == '~' else (literal, True)
 
 
 # ______________________________________________________________________________
@@ -875,8 +861,8 @@ class WumpusKB(PropKB):
         for y in range(1, dimrow + 1):
             for x in range(1, dimrow + 1):
 
-                pits_in = list()
-                wumpus_in = list()
+                pits_in = []
+                wumpus_in = []
 
                 if x > 1:  # West room exists
                     pits_in.append(pit(x - 1, y))
@@ -898,11 +884,9 @@ class WumpusKB(PropKB):
                 self.tell(equiv(stench(x, y), new_disjunction(wumpus_in)))
 
         # Rule that describes existence of at least one Wumpus
-        wumpus_at_least = list()
+        wumpus_at_least = []
         for x in range(1, dimrow + 1):
-            for y in range(1, dimrow + 1):
-                wumpus_at_least.append(wumpus(x, y))
-
+            wumpus_at_least.extend(wumpus(x, y) for y in range(1, dimrow + 1))
         self.tell(new_disjunction(wumpus_at_least))
 
         # Rule that describes existence of at most one Wumpus
@@ -984,11 +968,14 @@ class WumpusKB(PropKB):
                 self.tell(implies(location(i, j, time), equiv(percept_breeze(time), breeze(i, j))))
                 self.tell(implies(location(i, j, time), equiv(percept_stench(time), stench(i, j))))
 
-                s = list()
-
-                s.append(
+                s = [
                     equiv(
-                        location(i, j, time), location(i, j, time) & ~move_forward(time) | percept_bump(time)))
+                        location(i, j, time),
+                        location(i, j, time) & ~move_forward(time)
+                        | percept_bump(time),
+                    )
+                ]
+
 
                 if i != 1:
                     s.append(location(i - 1, j, t) & facing_east(t) & move_forward(t))
@@ -1072,11 +1059,10 @@ class WumpusPosition:
         self.orientation = orientation
 
     def __eq__(self, other):
-        if (other.get_location() == self.get_location() and
-                other.get_orientation() == self.get_orientation()):
-            return True
-        else:
-            return False
+        return (
+            other.get_location() == self.get_location()
+            and other.get_orientation() == self.get_orientation()
+        )
 
 
 # ______________________________________________________________________________
@@ -1090,7 +1076,7 @@ class HybridWumpusAgent(Agent):
         self.dimrow = dimentions
         self.kb = WumpusKB(self.dimrow)
         self.t = 0
-        self.plan = list()
+        self.plan = []
         self.current_position = WumpusPosition(1, 1, 'UP')
         super().__init__(self.execute)
 
@@ -1098,14 +1084,12 @@ class HybridWumpusAgent(Agent):
         self.kb.make_percept_sentence(percept, self.t)
         self.kb.add_temporal_sentences(self.t)
 
-        temp = list()
+        temp = []
 
         for i in range(1, self.dimrow + 1):
             for j in range(1, self.dimrow + 1):
                 if self.kb.ask_if_true(location(i, j, self.t)):
-                    temp.append(i)
-                    temp.append(j)
-
+                    temp.extend((i, j))
         if self.kb.ask_if_true(facing_north(self.t)):
             self.current_position = WumpusPosition(temp[0], temp[1], 'UP')
         elif self.kb.ask_if_true(facing_south(self.t)):
@@ -1115,58 +1099,65 @@ class HybridWumpusAgent(Agent):
         elif self.kb.ask_if_true(facing_east(self.t)):
             self.current_position = WumpusPosition(temp[0], temp[1], 'RIGHT')
 
-        safe_points = list()
+        safe_points = []
         for i in range(1, self.dimrow + 1):
-            for j in range(1, self.dimrow + 1):
-                if self.kb.ask_if_true(ok_to_move(i, j, self.t)):
-                    safe_points.append([i, j])
+            safe_points.extend(
+                [i, j]
+                for j in range(1, self.dimrow + 1)
+                if self.kb.ask_if_true(ok_to_move(i, j, self.t))
+            )
 
         if self.kb.ask_if_true(percept_glitter(self.t)):
-            goals = list()
-            goals.append([1, 1])
+            goals = [[1, 1]]
             self.plan.append('Grab')
             actions = self.plan_route(self.current_position, goals, safe_points)
             self.plan.extend(actions)
             self.plan.append('Climb')
 
         if len(self.plan) == 0:
-            unvisited = list()
+            unvisited = []
             for i in range(1, self.dimrow + 1):
                 for j in range(1, self.dimrow + 1):
-                    for k in range(self.t):
-                        if self.kb.ask_if_true(location(i, j, k)):
-                            unvisited.append([i, j])
-            unvisited_and_safe = list()
-            for u in unvisited:
-                for s in safe_points:
-                    if u not in unvisited_and_safe and s == u:
-                        unvisited_and_safe.append(u)
+                    unvisited.extend(
+                        [i, j]
+                        for k in range(self.t)
+                        if self.kb.ask_if_true(location(i, j, k))
+                    )
+
+            unvisited_and_safe = []
+            for u, s in itertools.product(unvisited, safe_points):
+                if u not in unvisited_and_safe and s == u:
+                    unvisited_and_safe.append(u)
 
             temp = self.plan_route(self.current_position, unvisited_and_safe, safe_points)
             self.plan.extend(temp)
 
         if len(self.plan) == 0 and self.kb.ask_if_true(have_arrow(self.t)):
-            possible_wumpus = list()
+            possible_wumpus = []
             for i in range(1, self.dimrow + 1):
-                for j in range(1, self.dimrow + 1):
-                    if not self.kb.ask_if_true(wumpus(i, j)):
-                        possible_wumpus.append([i, j])
+                possible_wumpus.extend(
+                    [i, j]
+                    for j in range(1, self.dimrow + 1)
+                    if not self.kb.ask_if_true(wumpus(i, j))
+                )
 
             temp = self.plan_shot(self.current_position, possible_wumpus, safe_points)
             self.plan.extend(temp)
 
         if len(self.plan) == 0:
-            not_unsafe = list()
+            not_unsafe = []
             for i in range(1, self.dimrow + 1):
-                for j in range(1, self.dimrow + 1):
-                    if not self.kb.ask_if_true(ok_to_move(i, j, self.t)):
-                        not_unsafe.append([i, j])
+                not_unsafe.extend(
+                    [i, j]
+                    for j in range(1, self.dimrow + 1)
+                    if not self.kb.ask_if_true(ok_to_move(i, j, self.t))
+                )
+
             temp = self.plan_route(self.current_position, not_unsafe, safe_points)
             self.plan.extend(temp)
 
         if len(self.plan) == 0:
-            start = list()
-            start.append([1, 1])
+            start = [[1, 1]]
             temp = self.plan_route(self.current_position, start, safe_points)
             self.plan.extend(temp)
             self.plan.append('Climb')
@@ -1200,11 +1191,10 @@ class HybridWumpusAgent(Agent):
 
         # Can't have a shooting position from any of the rooms the Wumpus could reside
         orientations = ['EAST', 'WEST', 'NORTH', 'SOUTH']
-        for loc in goals:
-            for orientation in orientations:
-                shooting_positions.remove(WumpusPosition(loc[0], loc[1], orientation))
+        for loc, orientation in itertools.product(goals, orientations):
+            shooting_positions.remove(WumpusPosition(loc[0], loc[1], orientation))
 
-        actions = list()
+        actions = []
         actions.extend(self.plan_route(current, shooting_positions, allowed))
         actions.append('Shoot')
         return actions
@@ -1224,21 +1214,15 @@ def SAT_plan(init, transition, goal, t_max, SAT_solver=dpll_satisfiable):
 
     # Functions used by SAT_plan
     def translate_to_SAT(init, transition, goal, time):
-        clauses = []
-        states = [state for state in transition]
+        states = list(transition)
 
         # Symbol claiming state s at time t
         state_counter = itertools.count()
         for s in states:
             for t in range(time + 1):
-                state_sym[s, t] = Expr("State_{}".format(next(state_counter)))
+                state_sym[s, t] = Expr(f"State_{next(state_counter)}")
 
-        # Add initial state axiom
-        clauses.append(state_sym[init, 0])
-
-        # Add goal state axiom
-        clauses.append(state_sym[goal, time])
-
+        clauses = [state_sym[init, 0], state_sym[goal, time]]
         # All possible transitions
         transition_counter = itertools.count()
         for s in states:
@@ -1246,12 +1230,16 @@ def SAT_plan(init, transition, goal, t_max, SAT_solver=dpll_satisfiable):
                 s_ = transition[s][action]
                 for t in range(time):
                     # Action 'action' taken from state 's' at time 't' to reach 's_'
-                    action_sym[s, action, t] = Expr(
-                        "Transition_{}".format(next(transition_counter)))
+                    action_sym[s, action, t] = Expr(f"Transition_{next(transition_counter)}")
 
-                    # Change the state from s to s_
-                    clauses.append(action_sym[s, action, t] | '==>' | state_sym[s, t])
-                    clauses.append(action_sym[s, action, t] | '==>' | state_sym[s_, t + 1])
+                    clauses.extend(
+                        (
+                            action_sym[s, action, t] | '==>' | state_sym[s, t],
+                            action_sym[s, action, t]
+                            | '==>'
+                            | state_sym[s_, t + 1],
+                        )
+                    )
 
         # Allow only one state at any time
         for t in range(time + 1):
@@ -1259,9 +1247,10 @@ def SAT_plan(init, transition, goal, t_max, SAT_solver=dpll_satisfiable):
             clauses.append(associate('|', [state_sym[s, t] for s in states]))
 
             for s in states:
-                for s_ in states[states.index(s) + 1:]:
-                    # for each pair of states s, s_ only one is possible at time t
-                    clauses.append((~state_sym[s, t]) | (~state_sym[s_, t]))
+                clauses.extend(
+                    (~state_sym[s, t]) | (~state_sym[s_, t])
+                    for s_ in states[states.index(s) + 1 :]
+                )
 
         # Restrict to one transition per timestep
         for t in range(time):
@@ -1272,9 +1261,10 @@ def SAT_plan(init, transition, goal, t_max, SAT_solver=dpll_satisfiable):
             clauses.append(associate('|', [action_sym[tr] for tr in transitions_t]))
 
             for tr in transitions_t:
-                for tr_ in transitions_t[transitions_t.index(tr) + 1:]:
-                    # there cannot be two transitions tr and tr_ at time t
-                    clauses.append(~action_sym[tr] | ~action_sym[tr_])
+                clauses.extend(
+                    ~action_sym[tr] | ~action_sym[tr_]
+                    for tr_ in transitions_t[transitions_t.index(tr) + 1 :]
+                )
 
         # Combine the clauses to form the cnf
         return associate('&', clauses)
@@ -1324,9 +1314,7 @@ def unify(x, y, s={}):
     elif isinstance(x, str) or isinstance(y, str):
         return None
     elif issequence(x) and issequence(y) and len(x) == len(y):
-        if not x:
-            return s
-        return unify(x[1:], y[1:], unify(x[0], y[0], s))
+        return unify(x[1:], y[1:], unify(x[0], y[0], s)) if x else s
     else:
         return None
 
@@ -1398,7 +1386,7 @@ class FolKB(KB):
         if is_definite_clause(sentence):
             self.clauses.append(sentence)
         else:
-            raise Exception("Not a definite clause: {}".format(sentence))
+            raise Exception(f"Not a definite clause: {sentence}")
 
     def ask_generator(self, query):
         return fol_bc_ask(self, query)
@@ -1422,8 +1410,7 @@ def fol_fc_ask(KB, alpha):
     def enum_subst(p):
         query_vars = list({v for clause in p for v in variables(clause)})
         for assignment_list in itertools.product(kb_consts, repeat=len(query_vars)):
-            theta = {x: y for x, y in zip(query_vars, assignment_list)}
-            yield theta
+            yield dict(zip(query_vars, assignment_list))
 
     # check if we can answer without new inferences
     for q in KB.clauses:
@@ -1458,7 +1445,7 @@ def subst(s, x):
     if isinstance(x, list):
         return [subst(s, xi) for xi in x]
     elif isinstance(x, tuple):
-        return tuple([subst(s, xi) for xi in x])
+        return tuple(subst(s, xi) for xi in x)
     elif not isinstance(x, Expr):
         return x
     elif is_var_symbol(x.op):
@@ -1476,10 +1463,9 @@ def standardize_variables(sentence, dic=None):
     elif is_var_symbol(sentence.op):
         if sentence in dic:
             return dic[sentence]
-        else:
-            v = Expr('v_{}'.format(next(standardize_variables.counter)))
-            dic[sentence] = v
-            return v
+        v = Expr(f'v_{next(standardize_variables.counter)}')
+        dic[sentence] = v
+        return v
     else:
         return Expr(sentence.op,
                     *[standardize_variables(a, dic) for a in sentence.args])
@@ -1501,8 +1487,7 @@ def fol_bc_ask(KB, query):
 def fol_bc_or(KB, goal, theta):
     for rule in KB.fetch_rules_for_goal(goal):
         lhs, rhs = parse_definite_clause(standardize_variables(rule))
-        for theta1 in fol_bc_and(KB, lhs, unify(rhs, goal, theta)):
-            yield theta1
+        yield from fol_bc_and(KB, lhs, unify(rhs, goal, theta))
 
 
 def fol_bc_and(KB, goals, theta):
@@ -1513,8 +1498,7 @@ def fol_bc_and(KB, goals, theta):
     else:
         first, rest = goals[0], goals[1:]
         for theta1 in fol_bc_or(KB, subst(theta, first), theta):
-            for theta2 in fol_bc_and(KB, rest, theta1):
-                yield theta2
+            yield from fol_bc_and(KB, rest, theta1)
 
 
 # ______________________________________________________________________________
@@ -1591,7 +1575,7 @@ def diff(y, x):
         elif op == 'log':
             return diff(u, x) / u
         else:
-            raise ValueError("Unknown op: {} in diff({}, {})".format(op, y, x))
+            raise ValueError(f"Unknown op: {op} in diff({y}, {x})")
 
 
 def simp(x):
@@ -1652,7 +1636,7 @@ def simp(x):
         if u == 1:
             return 0
     else:
-        raise ValueError("Unknown op: " + op)
+        raise ValueError(f"Unknown op: {op}")
     # If we fall through to here, we can not simplify further
     return Expr(op, *args)
 

@@ -32,9 +32,7 @@ class TSProblem(Problem):
 
     def path_cost(self, c, state1, action, state2):
         """total distance for the Traveling Salesman to be covered if in state2"""
-        cost = 0
-        for i in range(len(state2) - 1):
-            cost += distances[state2[i]][state2[i + 1]]
+        cost = sum(distances[state2[i]][state2[i + 1]] for i in range(len(state2) - 1))
         cost += distances[state2[0]][state2[-1]]
         return cost
 
@@ -102,10 +100,11 @@ class TSPGui():
     def run_traveling_salesman(self):
         """Choose selected cities"""
 
-        cities = []
-        for i in range(len(self.vars)):
-            if self.vars[i].get() == 1:
-                cities.append(self.all_cities[i])
+        cities = [
+            self.all_cities[i]
+            for i in range(len(self.vars))
+            if self.vars[i].get() == 1
+        ]
 
         tsp_problem = TSProblem(cities)
         self.button_text.set("Reset")
@@ -186,10 +185,10 @@ class TSPGui():
             no_of_neighbors_scale.grid(row=1, column=5, columnspan=5, sticky='nsew')
             self.hill_climbing(problem, map_canvas)
 
-    def exp_schedule(k=100, lam=0.03, limit=1000):
+    def exp_schedule(self, lam=0.03, limit=1000):
         """One possible schedule function for simulated annealing"""
 
-        return lambda t: (k * np.exp(-lam * t) if t < limit else 0)
+        return lambda t: self * np.exp(-lam * t) if t < limit else 0
 
     def simulated_annealing_with_tunable_T(self, problem, map_canvas, schedule=exp_schedule()):
         """Simulated annealing where temperature is taken as user input"""
@@ -212,8 +211,7 @@ class TSPGui():
                 self.cost.set("Cost = " + str('%0.3f' % (-1 * problem.value(current.state))))
                 points = []
                 for city in current.state:
-                    points.append(self.frame_locations[city][0])
-                    points.append(self.frame_locations[city][1])
+                    points.extend((self.frame_locations[city][0], self.frame_locations[city][1]))
                 map_canvas.create_polygon(points, outline='red', width=3, fill='', tag="poly")
                 map_canvas.update()
                 map_canvas.after(self.speed.get())
@@ -224,10 +222,7 @@ class TSPGui():
         def init_population(pop_number, gene_pool, state_length):
             """initialize population"""
 
-            population = []
-            for i in range(pop_number):
-                population.append(utils.shuffled(gene_pool))
-            return population
+            return [utils.shuffled(gene_pool) for _ in range(pop_number)]
 
         def recombine(state_a, state_b):
             """recombine two problem states"""
@@ -285,7 +280,7 @@ class TSPGui():
             """finds neighbors using two_opt method"""
 
             neighbors = []
-            for i in range(number_of_neighbors):
+            for _ in range(number_of_neighbors):
                 new_state = problem.two_opt(state)
                 neighbors.append(Node(new_state))
                 state = new_state

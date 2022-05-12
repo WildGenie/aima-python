@@ -27,11 +27,12 @@ def pseudocode(algorithm):
     from IPython.display import Markdown
 
     algorithm = algorithm.replace(' ', '-')
-    url = "https://raw.githubusercontent.com/aimacode/aima-pseudocode/master/md/{}.md".format(algorithm)
+    url = f"https://raw.githubusercontent.com/aimacode/aima-pseudocode/master/md/{algorithm}.md"
+
     f = urlopen(url)
     md = f.read().decode('utf-8')
     md = md.split('\n', 1)[-1].strip()
-    md = '#' + md
+    md = f'#{md}'
     return Markdown(md)
 
 
@@ -113,22 +114,19 @@ def load_MNIST(path="aima-data/MNIST/Digits", fashion=False):
     train_img_file = open(os.path.join(path, "train-images-idx3-ubyte"), "rb")
     train_lbl_file = open(os.path.join(path, "train-labels-idx1-ubyte"), "rb")
     test_img_file = open(os.path.join(path, "t10k-images-idx3-ubyte"), "rb")
-    test_lbl_file = open(os.path.join(path, 't10k-labels-idx1-ubyte'), "rb")
+    with open(os.path.join(path, 't10k-labels-idx1-ubyte'), "rb") as test_lbl_file:
+        magic_nr, tr_size, tr_rows, tr_cols = struct.unpack(">IIII", train_img_file.read(16))
+        tr_img = array.array("B", train_img_file.read())
+        train_img_file.close()
+        magic_nr, tr_size = struct.unpack(">II", train_lbl_file.read(8))
+        tr_lbl = array.array("b", train_lbl_file.read())
+        train_lbl_file.close()
 
-    magic_nr, tr_size, tr_rows, tr_cols = struct.unpack(">IIII", train_img_file.read(16))
-    tr_img = array.array("B", train_img_file.read())
-    train_img_file.close()
-    magic_nr, tr_size = struct.unpack(">II", train_lbl_file.read(8))
-    tr_lbl = array.array("b", train_lbl_file.read())
-    train_lbl_file.close()
-
-    magic_nr, te_size, te_rows, te_cols = struct.unpack(">IIII", test_img_file.read(16))
-    te_img = array.array("B", test_img_file.read())
-    test_img_file.close()
-    magic_nr, te_size = struct.unpack(">II", test_lbl_file.read(8))
-    te_lbl = array.array("b", test_lbl_file.read())
-    test_lbl_file.close()
-
+        magic_nr, te_size, te_rows, te_cols = struct.unpack(">IIII", test_img_file.read(16))
+        te_img = array.array("B", test_img_file.read())
+        test_img_file.close()
+        magic_nr, te_size = struct.unpack(">II", test_lbl_file.read(8))
+        te_lbl = array.array("b", test_lbl_file.read())
     # print(len(tr_img), len(tr_lbl), tr_size)
     # print(len(te_img), len(te_lbl), te_size)
 
@@ -153,11 +151,7 @@ fashion_classes = ["T-shirt/top", "Trouser", "Pullover", "Dress", "Coat",
 
 
 def show_MNIST(labels, images, samples=8, fashion=False):
-    if not fashion:
-        classes = digit_classes
-    else:
-        classes = fashion_classes
-
+    classes = fashion_classes if fashion else digit_classes
     num_classes = len(classes)
 
     for y, cls in enumerate(classes):
@@ -213,9 +207,7 @@ def make_plot_grid_step_function(columns, rows, U_over_time):
         data = defaultdict(lambda: 0, data)
         grid = []
         for row in range(rows):
-            current_row = []
-            for column in range(columns):
-                current_row.append(data[(column, row)])
+            current_row = [data[(column, row)] for column in range(columns)]
             grid.append(current_row)
         grid.reverse()  # output like book
         fig = plt.imshow(grid, cmap=plt.cm.bwr, interpolation='nearest')
@@ -385,7 +377,7 @@ class Canvas_TicTacToe(Canvas):
                  width=300, height=350, cid=None):
         valid_players = ('human', 'random', 'alpha_beta')
         if player_1 not in valid_players or player_2 not in valid_players:
-            raise TypeError("Players must be one of {}".format(valid_players))
+            raise TypeError(f"Players must be one of {valid_players}")
         super().__init__(varname, width, height, cid)
         self.ttt = TicTacToe()
         self.state = self.ttt.initial
@@ -439,21 +431,37 @@ class Canvas_TicTacToe(Canvas):
             if utility == 0:
                 self.text_n('Game Draw!', offset, 6 / 7 + offset)
             else:
-                self.text_n('Player {} wins!'.format("XO"[utility < 0]), offset, 6 / 7 + offset)
+                self.text_n(f'Player {"XO"[utility < 0]} wins!', offset, 6 / 7 + offset)
                 # Find the 3 and draw a line
                 self.stroke([255, 0][self.turn], [0, 255][self.turn], 0)
                 for i in range(3):
-                    if all([(i + 1, j + 1) in self.state.board for j in range(3)]) and \
-                            len({self.state.board[(i + 1, j + 1)] for j in range(3)}) == 1:
+                    if (
+                        all((i + 1, j + 1) in self.state.board for j in range(3))
+                        and len(
+                            {self.state.board[(i + 1, j + 1)] for j in range(3)}
+                        )
+                        == 1
+                    ):
                         self.line_n(i / 3 + 1 / 6, offset * 6 / 7, i / 3 + 1 / 6, (1 - offset) * 6 / 7)
-                    if all([(j + 1, i + 1) in self.state.board for j in range(3)]) and \
-                            len({self.state.board[(j + 1, i + 1)] for j in range(3)}) == 1:
+                    if (
+                        all((j + 1, i + 1) in self.state.board for j in range(3))
+                        and len(
+                            {self.state.board[(j + 1, i + 1)] for j in range(3)}
+                        )
+                        == 1
+                    ):
                         self.line_n(offset, (i / 3 + 1 / 6) * 6 / 7, 1 - offset, (i / 3 + 1 / 6) * 6 / 7)
-                if all([(i + 1, i + 1) in self.state.board for i in range(3)]) and \
-                        len({self.state.board[(i + 1, i + 1)] for i in range(3)}) == 1:
+                if (
+                    all((i + 1, i + 1) in self.state.board for i in range(3))
+                    and len({self.state.board[(i + 1, i + 1)] for i in range(3)})
+                    == 1
+                ):
                     self.line_n(offset, offset * 6 / 7, 1 - offset, (1 - offset) * 6 / 7)
-                if all([(i + 1, 3 - i) in self.state.board for i in range(3)]) and \
-                        len({self.state.board[(i + 1, 3 - i)] for i in range(3)}) == 1:
+                if (
+                    all((i + 1, 3 - i) in self.state.board for i in range(3))
+                    and len({self.state.board[(i + 1, 3 - i)] for i in range(3)})
+                    == 1
+                ):
                     self.line_n(offset, (1 - offset) * 6 / 7, 1 - offset, offset * 6 / 7)
             # restart button
             self.fill(0, 0, 255)
@@ -461,8 +469,12 @@ class Canvas_TicTacToe(Canvas):
             self.fill(0, 0, 0)
             self.text_n('Restart', 0.5 + 2 * offset, 13 / 14)
         else:  # Print which player's turn it is
-            self.text_n("Player {}'s move({})".format("XO"[self.turn], self.players[self.turn]),
-                        offset, 6 / 7 + offset)
+            self.text_n(
+                f"""Player {"XO"[self.turn]}'s move({self.players[self.turn]})""",
+                offset,
+                6 / 7 + offset,
+            )
+
 
         self.update()
 
@@ -484,7 +496,7 @@ class Canvas_min_max(Canvas):
 
     def __init__(self, varname, util_list, width=800, height=600, cid=None):
         super.__init__(varname, width, height, cid)
-        self.utils = {node: util for node, util in zip(range(13, 40), util_list)}
+        self.utils = dict(zip(range(13, 40), util_list))
         self.game = Fig52Extended()
         self.game.utils = self.utils
         self.nodes = list(range(40))
@@ -498,7 +510,7 @@ class Canvas_min_max(Canvas):
                                        self.l / 2 + (self.l + (1 - 5 * self.l) / 3) * i)
         self.font("12px Arial")
         self.node_stack = []
-        self.explored = {node for node in self.utils}
+        self.explored = set(self.utils)
         self.thick_lines = set()
         self.change_list = []
         self.draw_graph()
@@ -609,7 +621,7 @@ class Canvas_alpha_beta(Canvas):
 
     def __init__(self, varname, util_list, width=800, height=600, cid=None):
         super().__init__(varname, width, height, cid)
-        self.utils = {node: util for node, util in zip(range(13, 40), util_list)}
+        self.utils = dict(zip(range(13, 40), util_list))
         self.game = Fig52Extended()
         self.game.utils = self.utils
         self.nodes = list(range(40))
@@ -623,7 +635,7 @@ class Canvas_alpha_beta(Canvas):
                                        3 * self.l / 2 + (self.l + (1 - 6 * self.l) / 3) * i)
         self.font("12px Arial")
         self.node_stack = []
-        self.explored = {node for node in self.utils}
+        self.explored = set(self.utils)
         self.pruned = set()
         self.ab = {}
         self.thick_lines = set()
@@ -784,7 +796,7 @@ class Canvas_fol_bc_ask(Canvas):
         self.l = 1 / 20
         self.b = 3 * self.l
         bc_out = list(self.fol_bc_ask())
-        if len(bc_out) == 0:
+        if not bc_out:
             self.valid = False
         else:
             self.valid = True
@@ -1020,22 +1032,23 @@ def display_visual(graph_data, user_input, algorithm=None, problem=None):
                 pass
 
         def visualize_callback(visualize):
-            if visualize is True:
-                button.value = False
+            if visualize is not True:
+                return
+            button.value = False
 
-                problem = GraphProblem(start_dropdown.value, end_dropdown.value, romania_map)
-                global all_node_colors
+            problem = GraphProblem(start_dropdown.value, end_dropdown.value, romania_map)
+            global all_node_colors
 
-                user_algorithm = algorithm[algo_dropdown.value]
+            user_algorithm = algorithm[algo_dropdown.value]
 
-                iterations, all_node_colors, node = user_algorithm(problem)
-                solution = node.solution()
-                all_node_colors.append(final_path_colors(all_node_colors[0], problem, solution))
+            iterations, all_node_colors, node = user_algorithm(problem)
+            solution = node.solution()
+            all_node_colors.append(final_path_colors(all_node_colors[0], problem, solution))
 
-                slider.max = len(all_node_colors) - 1
+            slider.max = len(all_node_colors) - 1
 
-                for i in range(slider.max + 1):
-                    slider.value = i
+            for i in range(slider.max + 1):
+                slider.value = i
                     # time.sleep(.5)
 
         start_dropdown = widgets.Dropdown(description="Start city: ",
@@ -1064,7 +1077,7 @@ def plot_NQueens(solution):
     im = np.array(im).astype(np.float) / 255
     fig = plt.figure(figsize=(7, 7))
     ax = fig.add_subplot(111)
-    ax.set_title('{} Queens'.format(n))
+    ax.set_title(f'{n} Queens')
     plt.imshow(board, cmap='binary', interpolation='nearest')
     # NQueensCSP gives a solution as a dictionary
     if isinstance(solution, dict):
@@ -1096,8 +1109,7 @@ def heatmap(grid, cmap='binary', interpolation='nearest'):
 def gaussian_kernel(l=5, sig=1.0):
     ax = np.arange(-l // 2 + 1., l // 2 + 1.)
     xx, yy = np.meshgrid(ax, ax)
-    kernel = np.exp(-(xx ** 2 + yy ** 2) / (2. * sig ** 2))
-    return kernel
+    return np.exp(-(xx ** 2 + yy ** 2) / (2. * sig ** 2))
 
 
 # Plots utility function for a POMDP

@@ -57,9 +57,7 @@ class Grammar:
         X -> Y Z"""
         cnf = []
         for X, rules in self.rules.items():
-            for (Y, Z) in rules:
-                cnf.append((X, Y, Z))
-
+            cnf.extend((X, Y, Z) for (Y, Z) in rules)
         return cnf
 
     def generate_random(self, S='S'):
@@ -79,7 +77,7 @@ class Grammar:
         return ' '.join(rewrite(S.split(), []))
 
     def __repr__(self):
-        return '<Grammar {}>'.format(self.name)
+        return f'<Grammar {self.name}>'
 
 
 def ProbRules(**rules):
@@ -144,9 +142,7 @@ class ProbGrammar:
         X -> Y Z [p]"""
         cnf = []
         for X, rules in self.rules.items():
-            for (Y, Z), p in rules:
-                cnf.append((X, Y, Z, p))
-
+            cnf.extend((X, Y, Z, p) for (Y, Z), p in rules)
         return cnf
 
     def generate_random(self, S='S'):
@@ -171,7 +167,7 @@ class ProbGrammar:
         return (' '.join(rewritten_as), prob)
 
     def __repr__(self):
-        return '<Grammar {}>'.format(self.name)
+        return f'<Grammar {self.name}>'
 
 
 E0 = Grammar('E0',
@@ -310,7 +306,7 @@ class Chart:
     def parse(self, words, S='S'):
         """Parse a list of words; according to the grammar.
         Leave results in the chart."""
-        self.chart = [[] for i in range(len(words) + 1)]
+        self.chart = [[] for _ in range(len(words) + 1)]
         self.add_edge([0, 0, 'S_', [], [S]])
         for i in range(len(words)):
             self.scanner(i, words[i])
@@ -322,7 +318,7 @@ class Chart:
         if edge not in self.chart[end]:
             self.chart[end].append(edge)
             if self.trace:
-                print('Chart: added {}'.format(edge))
+                print(f'Chart: added {edge}')
             if not expects:
                 self.extender(edge)
             else:
@@ -357,7 +353,7 @@ class Chart:
 class Tree:
     def __init__(self, root, *args):
         self.root = root
-        self.leaves = [leaf for leaf in args]
+        self.leaves = list(args)
 
 
 def CYK_parse(words, grammar):
@@ -427,8 +423,11 @@ class TextParsingProblem(Problem):
                 for end in range(start, len(state) + 1):
                     # try combinations between (start, end)
                     articles = ' '.join(state[start:end])
-                    for c in self.combinations[articles]:
-                        actions.append(state[:start] + [c] + state[end:])
+                    actions.extend(
+                        state[:start] + [c] + state[end:]
+                        for c in self.combinations[articles]
+                    )
+
         return actions
 
     def result(self, state, action):
@@ -474,15 +473,13 @@ def beam_search_parsing(words, gramma, b=3):
     def explore(frontier):
         new_frontier = []
         for cost, state in frontier:
-            # expand the possible children states of current state
-            if not problem.goal_test(' '.join(state)):
-                actions = problem.actions(state)
-                for action in actions:
-                    new_state = problem.result(state, action)
-                    if [len(new_state), new_state] not in new_frontier and new_state != state:
-                        new_frontier.append([len(new_state), new_state])
-            else:
+            if problem.goal_test(' '.join(state)):
                 return problem.goal
+            actions = problem.actions(state)
+            for action in actions:
+                new_state = problem.result(state, action)
+                if [len(new_state), new_state] not in new_frontier and new_state != state:
+                    new_frontier.append([len(new_state), new_state])
         heapq.heapify(new_frontier)
         # only keep b states
         return heapq.nsmallest(b, new_frontier)

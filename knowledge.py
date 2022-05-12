@@ -51,7 +51,7 @@ def specializations(examples_so_far, h):
                     continue
 
                 h2 = h[i].copy()
-                h2[k] = '!' + v
+                h2[k] = f'!{v}'
                 h3 = h.copy()
                 h3[i] = h2
                 if check_all_consistency(examples_so_far, h3):
@@ -90,7 +90,7 @@ def generalizations(examples_so_far, h):
                 hypotheses += h3
 
     # Add OR operations
-    if hypotheses == [] or hypotheses == [{}]:
+    if hypotheses in [[], [{}]]:
         hypotheses = add_or(examples_so_far, h)
     else:
         hypotheses.extend(add_or(examples_so_far, h))
@@ -109,10 +109,7 @@ def add_or(examples_so_far, h):
     a_powerset = power_set(attrs.keys())
 
     for c in a_powerset:
-        h2 = {}
-        for k in c:
-            h2[k] = attrs[k]
-
+        h2 = {k: attrs[k] for k in c}
         if check_negative_consistency(examples_so_far, h2):
             h3 = h.copy()
             h3.append(h2)
@@ -191,10 +188,10 @@ def build_attr_combinations(s, values):
         rest = build_attr_combinations(s[i + 1:], values)
         for v in values[a]:
             o = {a: v}
+            t = o.copy()
             for r in rest:
-                t = o.copy()
                 for d in r:
-                    t.update(d)
+                    t |= d
                 h.append([t])
 
     return h
@@ -258,7 +255,7 @@ class FOILContainer(FolKB):
             self.const_syms.update(constant_symbols(sentence))
             self.pred_syms.update(predicate_symbols(sentence))
         else:
-            raise Exception('Not a definite clause: {}'.format(sentence))
+            raise Exception(f'Not a definite clause: {sentence}')
 
     def foil(self, examples, target):
         """Learn a list of first-order horn clauses
@@ -287,8 +284,17 @@ class FOILContainer(FolKB):
         while extended_examples[1]:
             l = self.choose_literal(self.new_literals(clause), extended_examples)
             clause[1].append(l)
-            extended_examples = [sum([list(self.extend_example(example, l)) for example in
-                                      extended_examples[i]], []) for i in range(2)]
+            extended_examples = [
+                sum(
+                    (
+                        list(self.extend_example(example, l))
+                        for example in extended_examples[i]
+                    ),
+                    [],
+                )
+                for i in range(2)
+            ]
+
 
         return clause, extended_examples[0]
 
@@ -308,10 +314,11 @@ class FOILContainer(FolKB):
         for pred, arity in self.pred_syms:
             new_vars = {standardize_variables(expr('x')) for _ in range(arity - 1)}
             for args in product(share_vars.union(new_vars), repeat=arity):
-                if any(var in share_vars for var in args):
-                    # make sure we don't return an existing rule
-                    if not Expr(pred, args) in clause[1]:
-                        yield Expr(pred, *[var for var in args])
+                if (
+                    any(var in share_vars for var in args)
+                    and Expr(pred, args) not in clause[1]
+                ):
+                    yield Expr(pred, *list(args))
 
     def choose_literal(self, literals, examples):
         """Choose the best literal based on the information gain."""
@@ -335,8 +342,14 @@ class FOILContainer(FolKB):
         """
         pre_pos = len(examples[0])
         pre_neg = len(examples[1])
-        post_pos = sum([list(self.extend_example(example, l)) for example in examples[0]], [])
-        post_neg = sum([list(self.extend_example(example, l)) for example in examples[1]], [])
+        post_pos = sum(
+            (list(self.extend_example(example, l)) for example in examples[0]), []
+        )
+
+        post_neg = sum(
+            (list(self.extend_example(example, l)) for example in examples[1]), []
+        )
+
         if pre_pos + pre_neg == 0 or len(post_pos) + len(post_neg) == 0:
             return -1
         # number of positive example that are represented in extended_examples
@@ -345,9 +358,10 @@ class FOILContainer(FolKB):
             represents = lambda d: all(d[x] == example[x] for x in example)
             if any(represents(l_) for l_ in post_pos):
                 T += 1
-        value = T * (np.log2(len(post_pos) / (len(post_pos) + len(post_neg)) + 1e-12) -
-                     np.log2(pre_pos / (pre_pos + pre_neg)))
-        return value
+        return T * (
+            np.log2(len(post_pos) / (len(post_pos) + len(post_neg)) + 1e-12)
+            - np.log2(pre_pos / (pre_pos + pre_neg))
+        )
 
     def update_examples(self, target, examples, extended_examples):
         """Add to the kb those examples what are represented in extended_examples
@@ -368,11 +382,7 @@ class FOILContainer(FolKB):
 
 def check_all_consistency(examples, h):
     """Check for the consistency of all examples under h."""
-    for e in examples:
-        if not is_consistent(e, h):
-            return False
-
-    return True
+    return all(is_consistent(e, h) for e in examples)
 
 
 def check_negative_consistency(examples, h):
@@ -403,11 +413,7 @@ def disjunction_value(e, d):
 
 def guess_value(e, h):
     """Guess value of example e under hypothesis h."""
-    for d in h:
-        if disjunction_value(e, d):
-            return True
-
-    return False
+    return any(disjunction_value(e, d) for d in h)
 
 
 def is_consistent(e, h):

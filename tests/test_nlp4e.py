@@ -49,10 +49,11 @@ def test_generation():
 
     sentence = grammar.generate_random('S')
     for token in sentence.split():
-        found = False
-        for non_terminal, terminals in grammar.lexicon.items():
-            if token in terminals:
-                found = True
+        found = any(
+            token in terminals
+            for non_terminal, terminals in grammar.lexicon.items()
+        )
+
         assert found
 
 

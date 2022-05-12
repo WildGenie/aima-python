@@ -43,9 +43,7 @@ def create_frames(root):
     frames.append(frame2)
     frames.append(frame3)
     for x in frames:
-        buttons_in_frame = []
-        for y in x.winfo_children():
-            buttons_in_frame.append(y)
+        buttons_in_frame = list(x.winfo_children())
         buttons.append(buttons_in_frame)
     buttonReset = Button(frame4, height=1, width=2,
                          text="Reset", command=lambda: reset_game())
@@ -74,10 +72,7 @@ def on_click(button):
     """
     global ttt, choices, count, sym, result, x_pos, o_pos
 
-    if count % 2 == 0:
-        sym = "X"
-    else:
-        sym = "O"
+    sym = "X" if count % 2 == 0 else "O"
     count += 1
 
     button.config(
@@ -106,10 +101,7 @@ def on_click(button):
     if 1 <= a <= 3 and 1 <= b <= 3:
         o_pos.append((a, b))
         button_to_change = get_button(a - 1, b - 1)
-        if count % 2 == 0:  # Used again, will become handy when user is given the choice of turn.
-            sym = "X"
-        else:
-            sym = "O"
+        sym = "X" if count % 2 == 0 else "O"
         count += 1
 
         if check_victory(button):
@@ -133,16 +125,16 @@ def check_victory(button):
     x, y = get_coordinates(button)
     tt = button['text']
     if buttons[0][y]['text'] == buttons[1][y]['text'] == buttons[2][y]['text'] != " ":
-        buttons[0][y].config(text="|" + tt + "|")
-        buttons[1][y].config(text="|" + tt + "|")
-        buttons[2][y].config(text="|" + tt + "|")
+        buttons[0][y].config(text=f"|{tt}|")
+        buttons[1][y].config(text=f"|{tt}|")
+        buttons[2][y].config(text=f"|{tt}|")
         return True
 
     # check if previous move caused a win on horizontal line
     if buttons[x][0]['text'] == buttons[x][1]['text'] == buttons[x][2]['text'] != " ":
-        buttons[x][0].config(text="--" + tt + "--")
-        buttons[x][1].config(text="--" + tt + "--")
-        buttons[x][2].config(text="--" + tt + "--")
+        buttons[x][0].config(text=f"--{tt}--")
+        buttons[x][1].config(text=f"--{tt}--")
+        buttons[x][2].config(text=f"--{tt}--")
         return True
 
     # check if previous move was on the main diagonal and caused a win
@@ -154,9 +146,9 @@ def check_victory(button):
 
     # check if previous move was on the secondary diagonal and caused a win
     if x + y == 2 and buttons[0][2]['text'] == buttons[1][1]['text'] == buttons[2][0]['text'] != " ":
-        buttons[0][2].config(text="/" + tt + "/")
-        buttons[1][1].config(text="/" + tt + "/")
-        buttons[2][0].config(text="/" + tt + "/")
+        buttons[0][2].config(text=f"/{tt}/")
+        buttons[1][1].config(text=f"/{tt}/")
+        buttons[2][0].config(text=f"/{tt}/")
         return True
 
     return False

@@ -82,7 +82,7 @@ class ProbDist:
                           for (v, p) in sorted(self.prob.items())])
 
     def __repr__(self):
-        return "P({})".format(self.varname)
+        return f"P({self.varname})"
 
 
 # ______________________________________________________________________________
@@ -123,7 +123,7 @@ class JointProbDist(ProbDist):
         return self.vals[var]
 
     def __repr__(self):
-        return "P({})".format(self.variables)
+        return f"P({self.variables})"
 
 
 def event_values(event, variables):
@@ -136,7 +136,7 @@ def event_values(event, variables):
     if isinstance(event, tuple) and len(event) == len(variables):
         return event
     else:
-        return tuple([event[var] for var in variables])
+        return tuple(event[var] for var in variables)
 
 
 def enumerate_joint_ask(X, e, P):
@@ -161,8 +161,7 @@ def enumerate_joint(variables, e, P):
     if not variables:
         return P[e]
     Y, rest = variables[0], variables[1:]
-    return sum([enumerate_joint(rest, extend(e, Y, y), P)
-                for y in P.values(Y)])
+    return sum(enumerate_joint(rest, extend(e, Y, y), P) for y in P.values(Y))
 
 
 # ______________________________________________________________________________
@@ -255,7 +254,7 @@ class BayesNet:
         for n in self.nodes:
             if n.variable == var:
                 return n
-        raise Exception("No such variable: {}".format(var))
+        raise Exception(f"No such variable: {var}")
 
     def variable_values(self, var):
         """Return the domain of var."""
@@ -382,12 +381,12 @@ def gaussian_probability(param, event, value):
 
     assert isinstance(event, dict)
     assert isinstance(param, dict)
-    buff = 0
-    for k, v in event.items():
-        # buffer varianle to calculate h1*a_h1 + h2*a_h2
-        buff += param['a'][k] * v
-    res = 1 / (param['sigma'] * np.sqrt(2 * np.pi)) * np.exp(-0.5 * ((value - buff - param['b']) / param['sigma']) ** 2)
-    return res
+    buff = sum(param['a'][k] * v for k, v in event.items())
+    return (
+        1
+        / (param['sigma'] * np.sqrt(2 * np.pi))
+        * np.exp(-0.5 * ((value - buff - param['b']) / param['sigma']) ** 2)
+    )
 
 
 def logistic_probability(param, event, value):
@@ -545,8 +544,7 @@ def pointwise_product(factors, bn):
 def sum_out(var, factors, bn):
     """Eliminate var from all factors by summing over its values."""
     result, var_factors = [], []
-    for f in factors:
-        (var_factors if var in f.variables else result).append(f)
+    (var_factors if var in f.variables else result).extend(iter(factors))
     result.append(pointwise_product(var_factors, bn).sum_out(var, bn))
     return result
 
@@ -640,7 +638,7 @@ def rejection_sampling(X, e, bn, N=10000):
     'False: 0.7, True: 0.3'
     """
     counts = {x: 0 for x in bn.variable_values(X)}  # bold N in [Figure 13.16]
-    for j in range(N):
+    for _ in range(N):
         sample = prior_sample(bn)  # boldface x in [Figure 13.16]
         if consistent_with(sample, e):
             counts[sample[X]] += 1
@@ -668,7 +666,7 @@ def likelihood_weighting(X, e, bn, N=10000):
     """
 
     W = {x: 0 for x in bn.variable_values(X)}
-    for j in range(N):
+    for _ in range(N):
         sample, weight = weighted_sample(bn, e)  # boldface x, w in [Figure 14.15]
         W[sample[X]] += weight
     return ProbDist(X, W)
@@ -704,7 +702,7 @@ def gibbs_ask(X, e, bn, N=1000):
     state = dict(e)  # boldface x in [Figure 14.16]
     for Zi in Z:
         state[Zi] = random.choice(bn.variable_values(Zi))
-    for j in range(N):
+    for _ in range(N):
         for Zi in Z:
             state[Zi] = markov_blanket_sample(Zi, state, bn)
             counts[state[X]] += 1
@@ -738,39 +736,21 @@ class complied_burglary:
 
     def Burglary(self, sample):
         if sample['Alarm']:
-            if sample['Earthquake']:
-                return probability(0.00327)
-            else:
-                return probability(0.485)
+            return probability(0.00327) if sample['Earthquake'] else probability(0.485)
         else:
-            if sample['Earthquake']:
-                return probability(7.05e-05)
-            else:
-                return probability(6.01e-05)
+            return probability(7.05e-05) if sample['Earthquake'] else probability(6.01e-05)
 
     def Earthquake(self, sample):
         if sample['Alarm']:
-            if sample['Burglary']:
-                return probability(0.0020212)
-            else:
-                return probability(0.36755)
+            return probability(0.0020212) if sample['Burglary'] else probability(0.36755)
         else:
-            if sample['Burglary']:
-                return probability(0.0016672)
-            else:
-                return probability(0.0014222)
+            return probability(0.0016672) if sample['Burglary'] else probability(0.0014222)
 
     def MaryCalls(self, sample):
-        if sample['Alarm']:
-            return probability(0.7)
-        else:
-            return probability(0.01)
+        return probability(0.7) if sample['Alarm'] else probability(0.01)
 
     def JongCalls(self, sample):
-        if sample['Alarm']:
-            return probability(0.9)
-        else:
-            return probability(0.05)
+        return probability(0.9) if sample['Alarm'] else probability(0.05)
 
     def Alarm(self, sample):
         raise NotImplementedError

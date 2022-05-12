@@ -306,7 +306,7 @@ def stochastic_gradient_descent(dataset, net, loss, epochs=1000, l_rate=0.01, ba
                         net[i].nodes[j].weights = weights[i][j]
 
         if verbose:
-            print("epoch:{}, total_loss:{}".format(e + 1, total_loss))
+            print(f"epoch:{e + 1}, total_loss:{total_loss}")
 
     return net
 
@@ -363,7 +363,7 @@ def adam(dataset, net, loss, epochs=1000, rho=(0.9, 0.999), delta=1 / 10 ** 8,
                         net[i].nodes[j].weights = weights[i][j]
 
         if verbose:
-            print("epoch:{}, total_loss:{}".format(e + 1, total_loss))
+            print(f"epoch:{e + 1}, total_loss:{total_loss}")
 
     return net
 

@@ -562,7 +562,7 @@ def on_click():
     """
     global algo, counter, next_button, romania_problem, start, goal
     romania_problem = GraphProblem(start.get(), goal.get(), romania_map)
-    if "Breadth-First Tree Search" == algo.get():
+    if algo.get() == "Breadth-First Tree Search":
         node = breadth_first_tree_search(romania_problem)
         if node is not None:
             final_path = breadth_first_tree_search(romania_problem).solution()
@@ -570,7 +570,7 @@ def on_click():
             display_final(final_path)
             next_button.config(state="disabled")
         counter += 1
-    elif "Depth-First Tree Search" == algo.get():
+    elif algo.get() == "Depth-First Tree Search":
         node = depth_first_tree_search(romania_problem)
         if node is not None:
             final_path = depth_first_tree_search(romania_problem).solution()
@@ -578,7 +578,7 @@ def on_click():
             display_final(final_path)
             next_button.config(state="disabled")
         counter += 1
-    elif "Breadth-First Graph Search" == algo.get():
+    elif algo.get() == "Breadth-First Graph Search":
         node = breadth_first_graph_search(romania_problem)
         if node is not None:
             final_path = breadth_first_graph_search(romania_problem).solution()
@@ -586,7 +586,7 @@ def on_click():
             display_final(final_path)
             next_button.config(state="disabled")
         counter += 1
-    elif "Depth-First Graph Search" == algo.get():
+    elif algo.get() == "Depth-First Graph Search":
         node = depth_first_graph_search(romania_problem)
         if node is not None:
             final_path = depth_first_graph_search(romania_problem).solution()
@@ -594,7 +594,7 @@ def on_click():
             display_final(final_path)
             next_button.config(state="disabled")
         counter += 1
-    elif "Uniform Cost Search" == algo.get():
+    elif algo.get() == "Uniform Cost Search":
         node = uniform_cost_search(romania_problem)
         if node is not None:
             final_path = uniform_cost_search(romania_problem).solution()
@@ -602,7 +602,7 @@ def on_click():
             display_final(final_path)
             next_button.config(state="disabled")
         counter += 1
-    elif "A* - Search" == algo.get():
+    elif algo.get() == "A* - Search":
         node = astar_search(romania_problem)
         if node is not None:
             final_path = astar_search(romania_problem).solution()

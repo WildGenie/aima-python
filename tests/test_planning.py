@@ -586,7 +586,7 @@ initialPlan = [AngelicNode(prob_1.initial, None, [angelic_opt_description], [ang
 
 
 def test_refinements():
-    result = [i for i in RealWorldPlanningProblem.refinements(go_SFO, library_1)]
+    result = list(RealWorldPlanningProblem.refinements(go_SFO, library_1))
 
     assert (result[0][0].name == drive_SFOLongTermParking.name)
     assert (result[0][0].args == drive_SFOLongTermParking.args)

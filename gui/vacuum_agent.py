@@ -88,15 +88,9 @@ class Gui(Environment):
         """Reads the current state of the GUI."""
         for i, btn in enumerate(self.buttons):
             if i == 0:
-                if btn['bg'] == 'white':
-                    self.status[loc_A] = 'Clean'
-                else:
-                    self.status[loc_A] = 'Dirty'
+                self.status[loc_A] = 'Clean' if btn['bg'] == 'white' else 'Dirty'
             else:
-                if btn['bg'] == 'white':
-                    self.status[loc_B] = 'Clean'
-                else:
-                    self.status[loc_B] = 'Dirty'
+                self.status[loc_B] = 'Clean' if btn['bg'] == 'white' else 'Dirty'
 
     def update_env(self, agent):
         """Updates the GUI according to the agent's action."""
@@ -123,9 +117,7 @@ def create_agent(env, agent):
 
 def move_agent(env, agent, before_step):
     """Moves the agent in the GUI when 'next' button is pressed."""
-    if agent.location == before_step:
-        pass
-    else:
+    if agent.location != before_step:
         if agent.location == (1, 0):
             env.canvas.move(env.text, 120, 0)
             env.canvas.move(env.agent_rect, 120, 0)

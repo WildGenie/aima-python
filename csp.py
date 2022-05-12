@@ -95,11 +95,10 @@ class CSP(search.Problem):
         assignments to an unassigned variable."""
         if len(state) == len(self.variables):
             return []
-        else:
-            assignment = dict(state)
-            var = first([v for v in self.variables if v not in assignment])
-            return [(var, val) for val in self.domains[var]
-                    if self.nconflicts(var, val, assignment) == 0]
+        assignment = dict(state)
+        var = first([v for v in self.variables if v not in assignment])
+        return [(var, val) for val in self.domains[var]
+                if self.nconflicts(var, val, assignment) == 0]
 
     def result(self, state, action):
         """Perform an action and return the new state."""
@@ -141,8 +140,11 @@ class CSP(search.Problem):
     def infer_assignment(self):
         """Return the partial assignment implied by the current inferences."""
         self.support_pruning()
-        return {v: self.curr_domains[v][0]
-                for v in self.variables if 1 == len(self.curr_domains[v])}
+        return {
+            v: self.curr_domains[v][0]
+            for v in self.variables
+            if len(self.curr_domains[v]) == 1
+        }
 
     def restore(self, removals):
         """Undo a supposition and all inferences from it."""
@@ -317,9 +319,8 @@ def AC4(csp, queue=None, removals=None, arc_heuristic=dom_j_up):
                 csp.prune(Xi, x, removals)
                 revised = True
                 unsupported_variable_value_pairs.append((Xi, x))
-        if revised:
-            if not csp.curr_domains[Xi]:
-                return False, checks  # CSP is inconsistent
+        if revised and not csp.curr_domains[Xi]:
+            return False, checks  # CSP is inconsistent
     # propagation of removed values
     while unsupported_variable_value_pairs:
         Xj, y = unsupported_variable_value_pairs.pop()
@@ -331,9 +332,8 @@ def AC4(csp, queue=None, removals=None, arc_heuristic=dom_j_up):
                     csp.prune(Xi, x, removals)
                     revised = True
                     unsupported_variable_value_pairs.append((Xi, x))
-            if revised:
-                if not csp.curr_domains[Xi]:
-                    return False, checks  # CSP is inconsistent
+            if revised and not csp.curr_domains[Xi]:
+                return False, checks  # CSP is inconsistent
     return True, checks  # CSP is satisfiable
 
 
@@ -411,7 +411,7 @@ def backtracking_search(csp, select_unassigned_variable=first_unassigned_variabl
             return assignment
         var = select_unassigned_variable(assignment, csp)
         for value in order_domain_values(var, assignment, csp):
-            if 0 == csp.nconflicts(var, value, assignment):
+            if csp.nconflicts(var, value, assignment) == 0:
                 csp.assign(var, value, assignment)
                 removals = csp.suppose(var, value)
                 if inference(csp, var, value, assignment, removals):
@@ -439,7 +439,7 @@ def min_conflicts(csp, max_steps=100000):
         val = min_conflicts_value(csp, var, current)
         csp.assign(var, val, current)
     # Now repeatedly choose a random conflicted variable and change it
-    for i in range(max_steps):
+    for _ in range(max_steps):
         conflicted = csp.conflicted_vars(current)
         if not conflicted:
             return current
@@ -460,7 +460,6 @@ def min_conflicts_value(csp, var, current):
 
 def tree_csp_solver(csp):
     """[Figure 6.11]"""
-    assignment = {}
     root = csp.variables[0]
     X, parent = topological_sort(csp, root)
 
@@ -469,7 +468,7 @@ def tree_csp_solver(csp):
         if not make_arc_consistent(parent[Xj], Xj, csp):
             return None
 
-    assignment[root] = csp.curr_domains[root][0]
+    assignment = {root: csp.curr_domains[root][0]}
     for Xi in X[1:]:
         assignment[Xi] = assign_value(parent[Xi], Xi, csp, assignment)
         if not assignment[Xi]:
@@ -521,13 +520,7 @@ def make_arc_consistent(Xj, Xk, csp):
     by removing the possible values of Xj that cause inconsistencies."""
     # csp.curr_domains[Xj] = []
     for val1 in csp.domains[Xj]:
-        keep = False  # Keep or remove val1
-        for val2 in csp.domains[Xk]:
-            if csp.constraints(Xj, val1, Xk, val2):
-                # Found a consistent assignment for val1, keep it
-                keep = True
-                break
-
+        keep = any(csp.constraints(Xj, val1, Xk, val2) for val2 in csp.domains[Xk])
         if not keep:
             # Remove val1
             csp.prune(Xj, val1, None)
@@ -539,12 +532,14 @@ def assign_value(Xj, Xk, csp, assignment):
     """Assign a value to Xk given Xj's (Xk's parent) assignment.
     Return the first value that satisfies the constraints."""
     parent_assignment = assignment[Xj]
-    for val in csp.curr_domains[Xk]:
-        if csp.constraints(Xj, parent_assignment, Xk, val):
-            return val
-
-    # No consistent assignment available
-    return None
+    return next(
+        (
+            val
+            for val in csp.curr_domains[Xk]
+            if csp.constraints(Xj, parent_assignment, Xk, val)
+        ),
+        None,
+    )
 
 
 # ______________________________________________________________________________
@@ -707,10 +702,7 @@ class NQueensCSP(CSP):
                 print(ch, end=' ')
             print('    ', end=' ')
             for var in range(n):
-                if assignment.get(var, '') == val:
-                    ch = '*'
-                else:
-                    ch = ' '
+                ch = '*' if assignment.get(var, '') == val else ' '
                 print(str(self.nconflicts(var, val, assignment)) + ch, end=' ')
             print()
 
@@ -728,7 +720,7 @@ harder1 = '4173698.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2..
 
 _R3 = list(range(3))
 _CELL = itertools.count().__next__
-_BGRID = [[[[_CELL() for x in _R3] for y in _R3] for bx in _R3] for by in _R3]
+_BGRID = [[[[_CELL() for _ in _R3] for _ in _R3] for _ in _R3] for _ in _R3]
 _BOXES = flatten([list(map(flatten, brow)) for brow in _BGRID])
 _ROWS = flatten([list(map(flatten, zip(*brow))) for brow in _BGRID])
 _COLS = list(zip(*_ROWS))
@@ -1023,7 +1015,7 @@ def no_heuristic(to_do):
 
 
 def sat_up(to_do):
-    return SortedSet(to_do, key=lambda t: 1 / len([var for var in t[1].scope]))
+    return SortedSet(to_do, key=lambda t: 1 / len(list(t[1].scope)))
 
 
 class ACSolver:
@@ -1055,7 +1047,7 @@ class ACSolver:
             var, const = to_do.pop()
             other_vars = [ov for ov in const.scope if ov != var]
             new_domain = set()
-            if len(other_vars) == 0:
+            if not other_vars:
                 for val in domains[var]:
                     if const.holds({var: val}):
                         new_domain.add(val)
@@ -1107,15 +1099,14 @@ class ACSolver:
         """
         if ind == len(other_vars):
             return const.holds(env), checks + 1
-        else:
-            var = other_vars[ind]
-            for val in domains[var]:
-                # env = dict_union(env, {var:val})  # no side effects
-                env[var] = val
-                holds, checks = self.any_holds(domains, const, env, other_vars, ind + 1, checks)
-                if holds:
-                    return True, checks
-            return False, checks
+        var = other_vars[ind]
+        for val in domains[var]:
+            # env = dict_union(env, {var:val})  # no side effects
+            env[var] = val
+            holds, checks = self.any_holds(domains, const, env, other_vars, ind + 1, checks)
+            if holds:
+                return True, checks
+        return False, checks
 
     def domain_splitting(self, domains=None, to_do=None, arc_heuristic=sat_up):
         """
@@ -1130,8 +1121,9 @@ class ACSolver:
         elif all(len(new_domains[var]) == 1 for var in domains):
             return {var: first(new_domains[var]) for var in domains}
         else:
-            var = first(x for x in self.csp.variables if len(new_domains[x]) > 1)
-            if var:
+            if var := first(
+                x for x in self.csp.variables if len(new_domains[x]) > 1
+            ):
                 dom1, dom2 = partition_domain(new_domains[var])
                 new_doms1 = extend(new_domains, var, dom1)
                 new_doms2 = extend(new_domains, var, dom2)
@@ -1233,7 +1225,7 @@ class Crossword(NaryCSP):
             scope = []
             for j, element in enumerate(line):
                 if element == '_':
-                    var = "p" + str(j) + str(i)
+                    var = f"p{str(j)}{str(i)}"
                     domains[var] = list(string.ascii_lowercase)
                     scope.append(var)
                 else:
@@ -1247,7 +1239,7 @@ class Crossword(NaryCSP):
             scope = []
             for j, element in enumerate(line):
                 if element == '_':
-                    scope.append("p" + str(i) + str(j))
+                    scope.append(f"p{str(i)}{str(j)}")
                 else:
                     if len(scope) > 1:
                         constraints.append(Constraint(tuple(scope), is_word_constraint(words)))
@@ -1263,15 +1255,14 @@ class Crossword(NaryCSP):
             for j, element in enumerate(line):
                 if element == '*':
                     puzzle += "[*] "
+                elif assignment is None:
+                    puzzle += "[_] "
                 else:
-                    var = "p" + str(j) + str(i)
-                    if assignment is not None:
-                        if isinstance(assignment[var], set) and len(assignment[var]) == 1:
-                            puzzle += "[" + str(first(assignment[var])).upper() + "] "
-                        elif isinstance(assignment[var], str):
-                            puzzle += "[" + str(assignment[var]).upper() + "] "
-                        else:
-                            puzzle += "[_] "
+                    var = f"p{str(j)}{str(i)}"
+                    if isinstance(assignment[var], set) and len(assignment[var]) == 1:
+                        puzzle += f"[{str(first(assignment[var])).upper()}] "
+                    elif isinstance(assignment[var], str):
+                        puzzle += f"[{str(assignment[var]).upper()}] "
                     else:
                         puzzle += "[_] "
             print(puzzle)
@@ -1334,18 +1325,16 @@ class Kakuro(NaryCSP):
                 if element == '_':
                     var1 = str(i)
                     if len(var1) == 1:
-                        var1 = "0" + var1
+                        var1 = f"0{var1}"
                     var2 = str(j)
                     if len(var2) == 1:
-                        var2 = "0" + var2
-                    variables.append("X" + var1 + var2)
-        domains = {}
-        for var in variables:
-            domains[var] = set(range(1, 10))
+                        var2 = f"0{var2}"
+                    variables.append(f"X{var1}{var2}")
+        domains = {var: set(range(1, 10)) for var in variables}
         constraints = []
         for i, line in enumerate(puzzle):
             for j, element in enumerate(line):
-                if element != '_' and element != '*':
+                if element not in ['_', '*']:
                     # down - column
                     if element[0] != '':
                         x = []
@@ -1354,13 +1343,18 @@ class Kakuro(NaryCSP):
                                 break
                             var1 = str(k)
                             if len(var1) == 1:
-                                var1 = "0" + var1
+                                var1 = f"0{var1}"
                             var2 = str(j)
                             if len(var2) == 1:
-                                var2 = "0" + var2
-                            x.append("X" + var1 + var2)
-                        constraints.append(Constraint(x, sum_constraint(element[0])))
-                        constraints.append(Constraint(x, all_diff_constraint))
+                                var2 = f"0{var2}"
+                            x.append(f"X{var1}{var2}")
+                        constraints.extend(
+                            (
+                                Constraint(x, sum_constraint(element[0])),
+                                Constraint(x, all_diff_constraint),
+                            )
+                        )
+
                     # right - line
                     if element[1] != '':
                         x = []
@@ -1369,13 +1363,18 @@ class Kakuro(NaryCSP):
                                 break
                             var1 = str(i)
                             if len(var1) == 1:
-                                var1 = "0" + var1
+                                var1 = f"0{var1}"
                             var2 = str(k)
                             if len(var2) == 1:
-                                var2 = "0" + var2
-                            x.append("X" + var1 + var2)
-                        constraints.append(Constraint(x, sum_constraint(element[1])))
-                        constraints.append(Constraint(x, all_diff_constraint))
+                                var2 = f"0{var2}"
+                            x.append(f"X{var1}{var2}")
+                        constraints.extend(
+                            (
+                                Constraint(x, sum_constraint(element[1])),
+                                Constraint(x, all_diff_constraint),
+                            )
+                        )
+
         super().__init__(domains, constraints)
         self.puzzle = puzzle
 
@@ -1388,16 +1387,16 @@ class Kakuro(NaryCSP):
                 elif element == '_':
                     var1 = str(i)
                     if len(var1) == 1:
-                        var1 = "0" + var1
+                        var1 = f"0{var1}"
                     var2 = str(j)
                     if len(var2) == 1:
-                        var2 = "0" + var2
-                    var = "X" + var1 + var2
+                        var2 = f"0{var2}"
                     if assignment is not None:
+                        var = f"X{var1}{var2}"
                         if isinstance(assignment[var], set) and len(assignment[var]) == 1:
-                            puzzle += "[" + str(first(assignment[var])) + "]\t"
+                            puzzle += f"[{str(first(assignment[var]))}" + "]\t"
                         elif isinstance(assignment[var], int):
-                            puzzle += "[" + str(assignment[var]) + "]\t"
+                            puzzle += f"[{str(assignment[var])}" + "]\t"
                         else:
                             puzzle += "[_]\t"
                     else:
@@ -1412,24 +1411,69 @@ class Kakuro(NaryCSP):
 
 # [Figure 6.2]
 # T W O + T W O = F O U R
-two_two_four = NaryCSP({'T': set(range(1, 10)), 'F': set(range(1, 10)),
-                        'W': set(range(0, 10)), 'O': set(range(0, 10)), 'U': set(range(0, 10)), 'R': set(range(0, 10)),
-                        'C1': set(range(0, 2)), 'C2': set(range(0, 2)), 'C3': set(range(0, 2))},
-                       [Constraint(('T', 'F', 'W', 'O', 'U', 'R'), all_diff_constraint),
-                        Constraint(('O', 'R', 'C1'), lambda o, r, c1: o + o == r + 10 * c1),
-                        Constraint(('W', 'U', 'C1', 'C2'), lambda w, u, c1, c2: c1 + w + w == u + 10 * c2),
-                        Constraint(('T', 'O', 'C2', 'C3'), lambda t, o, c2, c3: c2 + t + t == o + 10 * c3),
-                        Constraint(('F', 'C3'), eq)])
+two_two_four = NaryCSP(
+    {
+        'T': set(range(1, 10)),
+        'F': set(range(1, 10)),
+        'W': set(range(10)),
+        'O': set(range(10)),
+        'U': set(range(10)),
+        'R': set(range(10)),
+        'C1': set(range(2)),
+        'C2': set(range(2)),
+        'C3': set(range(2)),
+    },
+    [
+        Constraint(('T', 'F', 'W', 'O', 'U', 'R'), all_diff_constraint),
+        Constraint(('O', 'R', 'C1'), lambda o, r, c1: o + o == r + 10 * c1),
+        Constraint(
+            ('W', 'U', 'C1', 'C2'),
+            lambda w, u, c1, c2: c1 + w + w == u + 10 * c2,
+        ),
+        Constraint(
+            ('T', 'O', 'C2', 'C3'),
+            lambda t, o, c2, c3: c2 + t + t == o + 10 * c3,
+        ),
+        Constraint(('F', 'C3'), eq),
+    ],
+)
+
 
 # S E N D + M O R E = M O N E Y
-send_more_money = NaryCSP({'S': set(range(1, 10)), 'M': set(range(1, 10)),
-                           'E': set(range(0, 10)), 'N': set(range(0, 10)), 'D': set(range(0, 10)),
-                           'O': set(range(0, 10)), 'R': set(range(0, 10)), 'Y': set(range(0, 10)),
-                           'C1': set(range(0, 2)), 'C2': set(range(0, 2)), 'C3': set(range(0, 2)),
-                           'C4': set(range(0, 2))},
-                          [Constraint(('S', 'E', 'N', 'D', 'M', 'O', 'R', 'Y'), all_diff_constraint),
-                           Constraint(('D', 'E', 'Y', 'C1'), lambda d, e, y, c1: d + e == y + 10 * c1),
-                           Constraint(('N', 'R', 'E', 'C1', 'C2'), lambda n, r, e, c1, c2: c1 + n + r == e + 10 * c2),
-                           Constraint(('E', 'O', 'N', 'C2', 'C3'), lambda e, o, n, c2, c3: c2 + e + o == n + 10 * c3),
-                           Constraint(('S', 'M', 'O', 'C3', 'C4'), lambda s, m, o, c3, c4: c3 + s + m == o + 10 * c4),
-                           Constraint(('M', 'C4'), eq)])
+send_more_money = NaryCSP(
+    {
+        'S': set(range(1, 10)),
+        'M': set(range(1, 10)),
+        'E': set(range(10)),
+        'N': set(range(10)),
+        'D': set(range(10)),
+        'O': set(range(10)),
+        'R': set(range(10)),
+        'Y': set(range(10)),
+        'C1': set(range(2)),
+        'C2': set(range(2)),
+        'C3': set(range(2)),
+        'C4': set(range(2)),
+    },
+    [
+        Constraint(
+            ('S', 'E', 'N', 'D', 'M', 'O', 'R', 'Y'), all_diff_constraint
+        ),
+        Constraint(
+            ('D', 'E', 'Y', 'C1'), lambda d, e, y, c1: d + e == y + 10 * c1
+        ),
+        Constraint(
+            ('N', 'R', 'E', 'C1', 'C2'),
+            lambda n, r, e, c1, c2: c1 + n + r == e + 10 * c2,
+        ),
+        Constraint(
+            ('E', 'O', 'N', 'C2', 'C3'),
+            lambda e, o, n, c2, c3: c2 + e + o == n + 10 * c3,
+        ),
+        Constraint(
+            ('S', 'M', 'O', 'C3', 'C4'),
+            lambda s, m, o, c3, c4: c3 + s + m == o + 10 * c4,
+        ),
+        Constraint(('M', 'C4'), eq),
+    ],
+)

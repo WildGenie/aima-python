@@ -38,8 +38,8 @@ def test_move_forward():
 
 def test_add():
     d = Direction(Direction.U)
-    l1 = d + "right"
-    l2 = d + "left"
+    l1 = f"{d}right"
+    l2 = f"{d}left"
     assert l1.direction == Direction.R
     assert l2.direction == Direction.L
 

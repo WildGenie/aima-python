@@ -50,7 +50,7 @@ class Thing:
     .__name__  slot (used for output only)."""
 
     def __repr__(self):
-        return '<{}>'.format(getattr(self, '__name__', self.__class__.__name__))
+        return f"<{getattr(self, '__name__', self.__class__.__name__)}>"
 
     def is_alive(self):
         """Things that are 'alive' should return true."""
@@ -88,7 +88,7 @@ class Agent(Thing):
             print("Can't find a valid program for {}, falling back to default.".format(self.__class__.__name__))
 
             def program(percept):
-                return eval(input('Percept={}; action? '.format(percept)))
+                return eval(input(f'Percept={percept}; action? '))
 
         self.program = program
 
@@ -105,7 +105,7 @@ def TraceAgent(agent):
 
     def new_program(percept):
         action = old_program(percept)
-        print('{} perceives {} and does {}'.format(agent, percept, action))
+        print(f'{agent} perceives {percept} and does {action}')
         return action
 
     agent.program = new_program
@@ -127,8 +127,7 @@ def TableDrivenAgentProgram(table):
 
     def program(percept):
         percepts.append(percept)
-        action = table.get(tuple(percepts))
-        return action
+        return table.get(tuple(percepts))
 
     return program
 
@@ -159,8 +158,7 @@ def SimpleReflexAgentProgram(rules, interpret_input):
     def program(percept):
         state = interpret_input(percept)
         rule = rule_match(state, rules)
-        action = rule.action
-        return action
+        return rule.action
 
     return program
 
@@ -174,8 +172,7 @@ def ModelBasedReflexAgentProgram(rules, update_state, model):
     def program(percept):
         program.state = update_state(program.state, program.action, percept, model)
         rule = rule_match(program.state, rules)
-        action = rule.action
-        return action
+        return rule.action
 
     program.state = program.action = None
     return program
@@ -338,7 +335,7 @@ class Environment:
 
     def run(self, steps=1000):
         """Run the Environment for given number of time steps."""
-        for step in range(steps):
+        for _ in range(steps):
             if self.is_done():
                 return
             self.step()
@@ -378,8 +375,8 @@ class Environment:
         except ValueError as e:
             print(e)
             print("  in Environment delete_thing")
-            print("  Thing to be removed: {} at {}".format(thing, thing.location))
-            print("  from list: {}".format([(thing, thing.location) for thing in self.things]))
+            print(f"  Thing to be removed: {thing} at {thing.location}")
+            print(f"  from list: {[(thing, thing.location) for thing in self.things]}")
         if thing in self.agents:
             self.agents.remove(thing)
 
@@ -506,8 +503,11 @@ class XYEnvironment(Environment):
         elif action == 'Forward':
             agent.bump = self.move_to(agent, agent.direction.move_forward(agent.location))
         elif action == 'Grab':
-            things = [thing for thing in self.list_things_at(agent.location) if agent.can_grab(thing)]
-            if things:    
+            if things := [
+                thing
+                for thing in self.list_things_at(agent.location)
+                if agent.can_grab(thing)
+            ]:
                 agent.holding.append(things[0])
                 print("Grabbing ", things[0].__class__.__name__)
                 self.delete_thing(things[0])
@@ -552,7 +552,12 @@ class XYEnvironment(Environment):
     def is_inbounds(self, location):
         """Checks to make sure that the location is inbounds (within walls if we have walls)"""
         x, y = location
-        return not (x < self.x_start or x > self.x_end or y < self.y_start or y > self.y_end)
+        return (
+            x >= self.x_start
+            and x <= self.x_end
+            and y >= self.y_start
+            and y <= self.y_end
+        )
 
     def random_location_inbounds(self, exclude=None):
         """Returns a random location that is inbounds (within walls if we have walls)"""
@@ -634,9 +639,7 @@ class GraphicEnvironment(XYEnvironment):
         x_start, y_start = (0, 0)
         x_end, y_end = self.width, self.height
         for x in range(x_start, x_end):
-            row = []
-            for y in range(y_start, y_end):
-                row.append(self.list_things_at((x, y)))
+            row = [self.list_things_at((x, y)) for y in range(y_start, y_end)]
             result.append(row)
         return result
 
@@ -660,7 +663,7 @@ class GraphicEnvironment(XYEnvironment):
     def run(self, steps=1000, delay=1):
         """Run the Environment for given number of time steps,
         but update the GUI too."""
-        for step in range(steps):
+        for _ in range(steps):
             self.update(delay)
             if self.is_done():
                 break
@@ -685,8 +688,8 @@ class GraphicEnvironment(XYEnvironment):
     def draw_world(self):
         self.grid[:] = (200, 200, 200)
         world = self.get_world()
-        for x in range(0, len(world)):
-            for y in range(0, len(world[x])):
+        for x in range(len(world)):
+            for y in range(len(world[x])):
                 if len(world[x][y]):
                     self.grid[y, x] = self.colors[world[x][y][-1].__class__.__name__]
 
@@ -908,9 +911,7 @@ class WumpusEnvironment(XYEnvironment):
             x_end, y_end = self.width - 1, self.height - 1
 
         for x in range(x_start, x_end):
-            row = []
-            for y in range(y_start, y_end):
-                row.append(self.list_things_at((x, y)))
+            row = [self.list_things_at((x, y)) for y in range(y_start, y_end)]
             result.append(row)
         return result
 
@@ -938,8 +939,7 @@ class WumpusEnvironment(XYEnvironment):
         """Return things in adjacent (not diagonal) cells of the agent.
         Result format: [Left, Right, Up, Down, Center / Current location]"""
         x, y = agent.location
-        result = []
-        result.append(self.percepts_from(agent, (x - 1, y)))
+        result = [self.percepts_from(agent, (x - 1, y))]
         result.append(self.percepts_from(agent, (x + 1, y)))
         result.append(self.percepts_from(agent, (x, y - 1)))
         result.append(self.percepts_from(agent, (x, y + 1)))
@@ -999,10 +999,12 @@ class WumpusEnvironment(XYEnvironment):
             if explorer[0].alive:
                 return False
             else:
-                print("Death by {} [-1000].".format(explorer[0].killed_by))
+                print(f"Death by {explorer[0].killed_by} [-1000].")
         else:
-            print("Explorer climbed out {}."
-                  .format("with Gold [+1000]!" if Gold() not in self.things else "without Gold [+0]"))
+            print(
+                f'Explorer climbed out {"with Gold [+1000]!" if Gold() not in self.things else "without Gold [+0]"}.'
+            )
+
         return True
 
     # TODO: Arrow needs to be implemented
@@ -1024,7 +1026,7 @@ def compare_agents(EnvFactory, AgentFactories, n=10, steps=1000):
     >>> performance_ReflexVacuumAgent <= performance_ModelBasedVacuumAgent
     True
     """
-    envs = [EnvFactory() for i in range(n)]
+    envs = [EnvFactory() for _ in range(n)]
     return [(A, test_agent(A, steps, copy.deepcopy(envs)))
             for A in AgentFactories]
 

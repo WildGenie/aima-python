@@ -51,8 +51,10 @@ def test_csp_actions():
     assert map_coloring_test.actions(state) == [('C', '2')]
 
     state = {'A': '1'}
-    assert (map_coloring_test.actions(state) == [('C', '2'), ('C', '3')] or
-            map_coloring_test.actions(state) == [('B', '2'), ('B', '3')])
+    assert map_coloring_test.actions(state) in [
+        [('C', '2'), ('C', '3')],
+        [('B', '2'), ('B', '3')],
+    ]
 
 
 def test_csp_result():
@@ -162,7 +164,7 @@ def test_csp_conflicted_vars():
 
     conflicted_vars = map_coloring_test.conflicted_vars(current)
 
-    assert (conflicted_vars == ['B', 'C'] or conflicted_vars == ['C', 'B'])
+    assert conflicted_vars in [['B', 'C'], ['C', 'B']]
 
 
 def test_revise():
@@ -178,7 +180,7 @@ def test_revise():
 
     consistency, _ = revise(csp, Xi, Xj, removals)
     assert not consistency
-    assert len(removals) == 0
+    assert not removals
 
     domains = {'A': [0, 1, 2, 3, 4], 'B': [0, 1, 2, 3, 4]}
     csp = CSP(variables=None, domains=domains, neighbors=neighbors, constraints=constraints)
@@ -204,8 +206,11 @@ def test_AC3():
     csp = CSP(variables=None, domains=domains, neighbors=neighbors, constraints=constraints)
 
     assert AC3(csp, removals=removals)
-    assert (removals == [('A', 1), ('A', 3), ('B', 1), ('B', 3)] or
-            removals == [('B', 1), ('B', 3), ('A', 1), ('A', 3)])
+    assert removals in [
+        [('A', 1), ('A', 3), ('B', 1), ('B', 3)],
+        [('B', 1), ('B', 3), ('A', 1), ('A', 3)],
+    ]
+
 
     domains = {'A': [2, 4], 'B': [3, 5]}
     constraints = lambda X, x, Y, y: (X == 'A' and Y == 'B') or (X == 'B' and Y == 'A') and x > y
@@ -231,8 +236,11 @@ def test_AC3b():
     csp = CSP(variables=None, domains=domains, neighbors=neighbors, constraints=constraints)
 
     assert AC3b(csp, removals=removals)
-    assert (removals == [('A', 1), ('A', 3), ('B', 1), ('B', 3)] or
-            removals == [('B', 1), ('B', 3), ('A', 1), ('A', 3)])
+    assert removals in [
+        [('A', 1), ('A', 3), ('B', 1), ('B', 3)],
+        [('B', 1), ('B', 3), ('A', 1), ('A', 3)],
+    ]
+
 
     domains = {'A': [2, 4], 'B': [3, 5]}
     constraints = lambda X, x, Y, y: (X == 'A' and Y == 'B') or (X == 'B' and Y == 'A') and x > y
@@ -258,8 +266,11 @@ def test_AC4():
     csp = CSP(variables=None, domains=domains, neighbors=neighbors, constraints=constraints)
 
     assert AC4(csp, removals=removals)
-    assert (removals == [('A', 1), ('A', 3), ('B', 1), ('B', 3)] or
-            removals == [('B', 1), ('B', 3), ('A', 1), ('A', 3)])
+    assert removals in [
+        [('A', 1), ('A', 3), ('B', 1), ('B', 3)],
+        [('B', 1), ('B', 3), ('A', 1), ('A', 3)],
+    ]
+
 
     domains = {'A': [2, 4], 'B': [3, 5]}
     constraints = lambda X, x, Y, y: (X == 'A' and Y == 'B') or (X == 'B' and Y == 'A') and x > y
@@ -275,8 +286,7 @@ def test_first_unassigned_variable():
     assert first_unassigned_variable(assignment, map_coloring_test) == 'C'
 
     assignment = {'B': '1'}
-    assert (first_unassigned_variable(assignment, map_coloring_test) == 'A' or
-            first_unassigned_variable(assignment, map_coloring_test) == 'C')
+    assert first_unassigned_variable(assignment, map_coloring_test) in ['A', 'C']
 
 
 def test_num_legal_values():
@@ -306,8 +316,7 @@ def test_mrv():
     domains = {'A': [0, 1, 2, 3, 4], 'B': [0, 1, 2, 3, 4], 'C': [0, 1, 2, 3, 4]}
     csp = CSP(variables=None, domains=domains, neighbors=neighbors, constraints=constraints)
 
-    assert (mrv(assignment, csp) == 'B' or
-            mrv(assignment, csp) == 'C')
+    assert mrv(assignment, csp) in ['B', 'C']
 
     domains = {'A': [0, 1, 2, 3, 4], 'B': [0, 1, 2, 3, 4, 5, 6], 'C': [0, 1, 2, 3, 4]}
     csp = CSP(variables=None, domains=domains, neighbors=neighbors, constraints=constraints)
@@ -484,34 +493,67 @@ def test_tree_csp_solver():
 
 
 def test_ac_solver():
-    assert ac_solver(csp_crossword) == {'one_across': 'has',
-                                        'one_down': 'hold',
-                                        'two_down': 'syntax',
-                                        'three_across': 'land',
-                                        'four_across': 'ant'} or {'one_across': 'bus',
-                                                                  'one_down': 'buys',
-                                                                  'two_down': 'search',
-                                                                  'three_across': 'year',
-                                                                  'four_across': 'car'}
-    assert ac_solver(two_two_four) == {'T': 7, 'F': 1, 'W': 6, 'O': 5, 'U': 3, 'R': 0, 'C1': 1, 'C2': 1, 'C3': 1} or \
-           {'T': 9, 'F': 1, 'W': 2, 'O': 8, 'U': 5, 'R': 6, 'C1': 1, 'C2': 0, 'C3': 1}
+    assert (
+        ac_solver(csp_crossword)
+        == {
+            'one_across': 'has',
+            'one_down': 'hold',
+            'two_down': 'syntax',
+            'three_across': 'land',
+            'four_across': 'ant',
+        }
+        or True
+    )
+
+    assert (
+        ac_solver(two_two_four)
+        == {
+            'T': 7,
+            'F': 1,
+            'W': 6,
+            'O': 5,
+            'U': 3,
+            'R': 0,
+            'C1': 1,
+            'C2': 1,
+            'C3': 1,
+        }
+        or True
+    )
+
     assert ac_solver(send_more_money) == \
            {'S': 9, 'M': 1, 'E': 5, 'N': 6, 'D': 7, 'O': 0, 'R': 8, 'Y': 2, 'C1': 1, 'C2': 1, 'C3': 0, 'C4': 1}
 
 
 def test_ac_search_solver():
-    assert ac_search_solver(csp_crossword) == {'one_across': 'has',
-                                               'one_down': 'hold',
-                                               'two_down': 'syntax',
-                                               'three_across': 'land',
-                                               'four_across': 'ant'} or {'one_across': 'bus',
-                                                                         'one_down': 'buys',
-                                                                         'two_down': 'search',
-                                                                         'three_across': 'year',
-                                                                         'four_across': 'car'}
-    assert ac_search_solver(two_two_four) == {'T': 7, 'F': 1, 'W': 6, 'O': 5, 'U': 3, 'R': 0,
-                                              'C1': 1, 'C2': 1, 'C3': 1} or \
-           {'T': 9, 'F': 1, 'W': 2, 'O': 8, 'U': 5, 'R': 6, 'C1': 1, 'C2': 0, 'C3': 1}
+    assert (
+        ac_search_solver(csp_crossword)
+        == {
+            'one_across': 'has',
+            'one_down': 'hold',
+            'two_down': 'syntax',
+            'three_across': 'land',
+            'four_across': 'ant',
+        }
+        or True
+    )
+
+    assert (
+        ac_search_solver(two_two_four)
+        == {
+            'T': 7,
+            'F': 1,
+            'W': 6,
+            'O': 5,
+            'U': 3,
+            'R': 0,
+            'C1': 1,
+            'C2': 1,
+            'C3': 1,
+        }
+        or True
+    )
+
     assert ac_search_solver(send_more_money) == {'S': 9, 'M': 1, 'E': 5, 'N': 6, 'D': 7, 'O': 0, 'R': 8, 'Y': 2,
                                                  'C1': 1, 'C2': 1, 'C3': 0, 'C4': 1}
 

@@ -161,15 +161,23 @@ def test_recursive_best_first_search():
                'UP', 'LEFT', 'UP', 'LEFT', 'DOWN', 'RIGHT', 'RIGHT', 'DOWN']
 
     def manhattan(node):
-        state = node.state
-        index_goal = {0: [2, 2], 1: [0, 0], 2: [0, 1], 3: [0, 2], 4: [1, 0], 5: [1, 1], 6: [1, 2], 7: [2, 0], 8: [2, 1]}
-        index_state = {}
         index = [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [2, 0], [2, 1], [2, 2]]
 
-        for i in range(len(state)):
-            index_state[state[i]] = index[i]
-
+        state = node.state
+        index_state = {state[i]: index[i] for i in range(len(state))}
         mhd = 0
+
+        index_goal = {
+            0: [2, 2],
+            1: [0, 0],
+            2: [0, 1],
+            3: [0, 2],
+            4: [1, 0],
+            5: [1, 1],
+            6: [1, 2],
+            7: [2, 0],
+            8: [2, 1],
+        }
 
         for i in range(8):
             for j in range(2):
@@ -204,7 +212,7 @@ def test_simulated_annealing():
     prob = PeakFindingProblem((0, 0), [[0, 5, 10, 8],
                                        [-3, 7, 9, 999],
                                        [1, 2, 5, 11]], directions8)
-    sols = {prob.value(simulated_annealing(prob)) for i in range(100)}
+    sols = {prob.value(simulated_annealing(prob)) for _ in range(100)}
     assert max(sols) == 999
 
 
@@ -235,7 +243,7 @@ def test_and_or_graph_search():
 
 def test_online_dfs_agent():
     odfs_agent = OnlineDFSAgent(LRTA_problem)
-    keys = [key for key in odfs_agent('State_3')]
+    keys = list(odfs_agent('State_3'))
     assert keys[0] in ['Right', 'Left']
     assert keys[1] in ['Right', 'Left']
     assert odfs_agent('State_5') is None
@@ -282,8 +290,8 @@ def test_genetic_algorithm():
     def fitness(q):
         non_attacking = 0
         for row1 in range(len(q)):
+            col1 = int(q[row1])
             for row2 in range(row1 + 1, len(q)):
-                col1 = int(q[row1])
                 col2 = int(q[row2])
                 row_diff = row1 - row2
                 col_diff = col1 - col2
@@ -323,12 +331,10 @@ def test_simpleProblemSolvingAgent():
             return percept
 
         def formulate_goal(self, state):
-            goal = [state7, state8]
-            return goal
+            return [state7, state8]
 
         def formulate_problem(self, state, goal):
-            problem = state
-            return problem
+            return state
 
         def search(self, problem):
             if problem == state1:

@@ -37,9 +37,11 @@ class ContinuousWorldView:
     def object_name(self):
         globals_in_main = {x: getattr(__main__, x) for x in dir(__main__)}
         for x in globals_in_main:
-            if isinstance(globals_in_main[x], type(self)):
-                if globals_in_main[x].time == self.time:
-                    return x
+            if (
+                isinstance(globals_in_main[x], type(self))
+                and globals_in_main[x].time == self.time
+            ):
+                return x
 
     def handle_add_obstacle(self, vertices):
         """ Vertices must be a nestedtuple. This method
@@ -52,11 +54,11 @@ class ContinuousWorldView:
         return NotImplementedError
 
     def get_polygon_obstacles_coordinates(self):
-        obstacle_coordiantes = []
-        for thing in self.world.things:
-            if isinstance(thing, PolygonObstacle):
-                obstacle_coordiantes.append(thing.coordinates)
-        return obstacle_coordiantes
+        return [
+            thing.coordinates
+            for thing in self.world.things
+            if isinstance(thing, PolygonObstacle)
+        ]
 
     def show(self):
         clear_output()
@@ -103,9 +105,11 @@ class GridWorldView:
     def object_name(self):
         globals_in_main = {x: getattr(__main__, x) for x in dir(__main__)}
         for x in globals_in_main:
-            if isinstance(globals_in_main[x], type(self)):
-                if globals_in_main[x].time == self.time:
-                    return x
+            if (
+                isinstance(globals_in_main[x], type(self))
+                and globals_in_main[x].time == self.time
+            ):
+                return x
 
     def set_label(self, coordinates, label):
         """ Add lables to a particular block of grid.
@@ -140,7 +144,7 @@ class GridWorldView:
             row, column = thing.location
             thing_class_name = thing.__class__.__name__
             if thing_class_name not in self.representation:
-                raise KeyError('Representation not found for {}'.format(thing_class_name))
+                raise KeyError(f'Representation not found for {thing_class_name}')
             world_map[row][column]["val"] = thing.__class__.__name__
 
         for location, label in self.labels.items():

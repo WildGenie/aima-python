@@ -30,10 +30,7 @@ class PlanningProblem:
     def convert(self, clauses):
         """Converts strings into exprs"""
         if not isinstance(clauses, Expr):
-            if len(clauses) > 0:
-                clauses = expr(clauses)
-            else:
-                clauses = []
+            clauses = expr(clauses) if len(clauses) > 0 else []
         try:
             clauses = conjuncts(clauses)
         except AttributeError:
@@ -42,7 +39,7 @@ class PlanningProblem:
         new_clauses = []
         for clause in clauses:
             if clause.op == '~':
-                new_clauses.append(expr('Not' + str(clause.args[0])))
+                new_clauses.append(expr(f'Not{str(clause.args[0])}'))
             else:
                 new_clauses.append(clause)
         return new_clauses
@@ -56,9 +53,12 @@ class PlanningProblem:
                 if action.precond:
                     for fests in set(action.precond).union(action.effect).difference(self.convert(action.domain)):
                         if fests.op[:3] != 'Not':
-                            kb.tell(expr(str(action.domain) + ' ==> ' + str(fests)))
+                            kb.tell(expr(f'{str(action.domain)} ==> {str(fests)}'))
 
-        objects = set(arg for clause in set(self.initial + self.goals) for arg in clause.args)
+        objects = {
+            arg for clause in set(self.initial + self.goals) for arg in clause.args
+        }
+
         fluent_list = []
         if name is not None:
             for fluent in self.initial + self.goals:
@@ -89,9 +89,9 @@ class PlanningProblem:
             kb = FolKB(self.initial)
             for action in self.actions:
                 if action.precond:
-                    kb.tell(expr(str(action.domain) + ' ==> ' + str(action)))
+                    kb.tell(expr(f'{str(action.domain)} ==> {str(action)}'))
 
-        objects = set(arg for clause in self.initial for arg in clause.args)
+        objects = {arg for clause in self.initial for arg in clause.args}
         expansions = []
         action_list = []
         if name is not None:
@@ -159,9 +159,9 @@ class PlanningProblem:
         args = action.args
         list_action = first(a for a in self.actions if a.name == action_name)
         if list_action is None:
-            raise Exception("Action '{}' not found".format(action_name))
+            raise Exception(f"Action '{action_name}' not found")
         if not list_action.check_precond(self.initial, args):
-            raise Exception("Action '{}' pre-conditions not satisfied".format(action))
+            raise Exception(f"Action '{action}' pre-conditions not satisfied")
         self.initial = list_action(self.initial, args).clauses
 
 
@@ -191,7 +191,7 @@ class Action:
         return self.act(kb, args)
 
     def __repr__(self):
-        return '{}'.format(Expr(self.name, *self.args))
+        return f'{Expr(self.name, *self.args)}'
 
     def convert(self, clauses):
         """Converts strings into Exprs"""
@@ -199,7 +199,7 @@ class Action:
             clauses = conjuncts(clauses)
             for i in range(len(clauses)):
                 if clauses[i].op == '~':
-                    clauses[i] = expr('Not' + str(clauses[i].args[0]))
+                    clauses[i] = expr(f'Not{str(clauses[i].args[0])}')
 
         elif isinstance(clauses, str):
             clauses = clauses.replace('~', 'Not')
@@ -235,10 +235,9 @@ class Action:
 
         if isinstance(kb, list):
             kb = FolKB(kb)
-        for clause in self.precond:
-            if self.substitute(clause, args) not in kb.clauses:
-                return False
-        return True
+        return all(
+            self.substitute(clause, args) in kb.clauses for clause in self.precond
+        )
 
     def act(self, kb, args):
         """Executes the action on the state's knowledge base"""
@@ -253,24 +252,18 @@ class Action:
             if clause.op[:3] == 'Not':
                 new_clause = Expr(clause.op[3:], *clause.args)
 
-                if kb.ask(self.substitute(new_clause, args)) is not False:
-                    kb.retract(self.substitute(new_clause, args))
             else:
                 new_clause = Expr('Not' + clause.op, *clause.args)
 
-                if kb.ask(self.substitute(new_clause, args)) is not False:
-                    kb.retract(self.substitute(new_clause, args))
-
+            if kb.ask(self.substitute(new_clause, args)) is not False:
+                kb.retract(self.substitute(new_clause, args))
         return kb
 
 
 def goal_test(goals, state):
     """Generic goal testing helper function"""
 
-    if isinstance(state, list):
-        kb = FolKB(state)
-    else:
-        kb = state
+    kb = FolKB(state) if isinstance(state, list) else state
     return all(kb.ask(q) is not False for q in goals)
 
 
@@ -616,8 +609,11 @@ class BackwardPlan(search.Problem):
         """
 
         def negate_clause(clause):
-            return Expr(clause.op.replace('Not', ''), *clause.args) if clause.op[:3] == 'Not' else Expr(
-                'Not' + clause.op, *clause.args)
+            return (
+                Expr(clause.op.replace('Not', ''), *clause.args)
+                if clause.op[:3] == 'Not'
+                else Expr(f'Not{clause.op}', *clause.args)
+            )
 
         subgoal = conjuncts(subgoal)
         return [action for action in self.expanded_actions if
@@ -657,7 +653,7 @@ def CSPlan(planning_problem, solution_length, CSP_solver=ac_search_solver, arc_h
 
     def st(var, stage):
         """Returns a string for the var-stage pair that can be used as a variable"""
-        return str(var) + "_" + str(stage)
+        return f"{str(var)}_{str(stage)}"
 
     def if_(v1, v2):
         """If the second argument is v2, the first argument must be v1"""
@@ -834,7 +830,7 @@ class Level:
         """Populates the lists and dictionaries containing the state action dependencies"""
 
         for clause in self.current_state:
-            p_expr = Expr('P' + clause.op, *clause.args)
+            p_expr = Expr(f'P{clause.op}', *clause.args)
             self.current_action_links[p_expr] = [clause]
             self.next_action_links[p_expr] = [clause]
             self.current_state_links[clause] = [p_expr]
@@ -890,7 +886,7 @@ class Graph:
         self.planning_problem = planning_problem
         self.kb = FolKB(planning_problem.initial)
         self.levels = [Level(self.kb)]
-        self.objects = set(arg for clause in self.kb.clauses for arg in clause.args)
+        self.objects = {arg for clause in self.kb.clauses for arg in clause.args}
 
     def __call__(self):
         self.expand_graph()
@@ -906,10 +902,7 @@ class Graph:
         """Checks whether the goals are mutually exclusive"""
 
         goal_perm = itertools.combinations(goals, 2)
-        for g in goal_perm:
-            if set(g) in self.levels[index].mutex:
-                return False
-        return True
+        return all(set(g) not in self.levels[index].mutex for g in goal_perm)
 
 
 class GraphPlan:
@@ -943,10 +936,7 @@ class GraphPlan:
         level = self.graph.levels[index - 1]
 
         # Create all combinations of actions that satisfy the goal
-        actions = []
-        for goal in goals:
-            actions.append(level.next_state_links[goal])
-
+        actions = [level.next_state_links[goal] for goal in goals]
         all_actions = list(itertools.product(*actions))
 
         # Filter out non-mutex actions
@@ -981,10 +971,7 @@ class GraphPlan:
         for item in self.solution:
             if item[1] == -1:
                 solution.append([])
-                solution[-1].append(item[0])
-            else:
-                solution[-1].append(item[0])
-
+            solution[-1].append(item[0])
         for num, item in enumerate(solution):
             item.reverse()
             solution[num] = item
@@ -1001,8 +988,9 @@ class GraphPlan:
             self.graph.expand_graph()
             if (self.goal_test(self.graph.levels[-1].kb) and self.graph.non_mutex_goals(
                     self.graph.planning_problem.goals, -1)):
-                solution = self.extract_solution(self.graph.planning_problem.goals, -1)
-                if solution:
+                if solution := self.extract_solution(
+                    self.graph.planning_problem.goals, -1
+                ):
                     return solution
 
             if len(self.graph.levels) >= 2 and self.check_leveloff():
@@ -1019,10 +1007,12 @@ class Linearize:
 
         new_solution = []
         for section in solution[0]:
-            new_section = []
-            for operation in section:
-                if not (operation.op[0] == 'P' and operation.op[1].isupper()):
-                    new_section.append(operation)
+            new_section = [
+                operation
+                for operation in section
+                if not (operation.op[0] == 'P' and operation.op[1].isupper())
+            ]
+
             new_solution.append(new_section)
         return new_solution
 
@@ -1053,9 +1043,7 @@ class Linearize:
         planning_problem = self.planning_problem
         for level in filtered_solution:
             level_solution, planning_problem = self.orderlevel(level, planning_problem)
-            for element in level_solution:
-                ordered_solution.append(element)
-
+            ordered_solution.extend(iter(level_solution))
         return ordered_solution
 
 
@@ -1064,9 +1052,11 @@ def linearize(solution):
 
     linear_solution = []
     for section in solution[0]:
-        for operation in section:
-            if not (operation.op[0] == 'P' and operation.op[1].isupper()):
-                linear_solution.append(operation)
+        linear_solution.extend(
+            operation
+            for operation in section
+            if operation.op[0] != 'P' or not operation.op[1].isupper()
+        )
 
     return linear_solution
 
@@ -1105,16 +1095,14 @@ class PartialOrderPlanner:
         self.actions.add(self.finish)
         self.constraints = set()
         self.constraints.add((self.start, self.finish))
-        self.agenda = set()
-        for precond in self.finish.precond:
-            self.agenda.add((precond, self.finish))
+        self.agenda = {(precond, self.finish) for precond in self.finish.precond}
         self.expanded_actions = planning_problem.expand_actions()
 
     def find_open_precondition(self):
         """Find open precondition with the least number of possible actions"""
 
-        number_of_ways = dict()
-        actions_for_precondition = dict()
+        number_of_ways = {}
+        actions_for_precondition = {}
         for element in self.agenda:
             open_precondition = element[0]
             possible_actions = list(self.actions) + self.expanded_actions
@@ -1134,11 +1122,10 @@ class PartialOrderPlanner:
             if v == 0:
                 return None, None, None
 
-        act1 = None
-        for element in self.agenda:
-            if element[0] == number[0]:
-                act1 = element[1]
-                break
+        act1 = next(
+            (element[1] for element in self.agenda if element[0] == number[0]),
+            None,
+        )
 
         if number[0] in self.expanded_actions:
             self.expanded_actions.remove(number[0])
@@ -1183,22 +1170,19 @@ class PartialOrderPlanner:
     def generate_action_object(self, action, bindings):
         """Generate action object given a generic action and variable bindings"""
 
-        # if bindings is 0, it means the action already exists in self.actions
         if bindings == 0:
             return action
 
-        # bindings cannot be None
-        else:
-            new_expr = self.generate_expr(action, bindings)
-            new_preconds = []
-            for precond in action.precond:
-                new_precond = self.generate_expr(precond, bindings)
-                new_preconds.append(new_precond)
-            new_effects = []
-            for effect in action.effect:
-                new_effect = self.generate_expr(effect, bindings)
-                new_effects.append(new_effect)
-            return Action(new_expr, new_preconds, new_effects)
+        new_expr = self.generate_expr(action, bindings)
+        new_preconds = []
+        for precond in action.precond:
+            new_precond = self.generate_expr(precond, bindings)
+            new_preconds.append(new_precond)
+        new_effects = []
+        for effect in action.effect:
+            new_effect = self.generate_expr(effect, bindings)
+            new_effects.append(new_effect)
+        return Action(new_expr, new_preconds, new_effects)
 
     def cyclic(self, graph):
         """Check cyclicity of a directed graph"""
@@ -1239,19 +1223,17 @@ class PartialOrderPlanner:
     def is_a_threat(self, precondition, effect):
         """Check if effect is a threat to precondition"""
 
-        if (str(effect.op) == 'Not' + str(precondition.op)) or ('Not' + str(effect.op) == str(precondition.op)):
-            if effect.args == precondition.args:
-                return True
-        return False
+        return (
+            str(effect.op) == f'Not{str(precondition.op)}'
+            or f'Not{str(effect.op)}' == str(precondition.op)
+        ) and effect.args == precondition.args
 
     def protect(self, causal_link, action, constraints):
         """Check and resolve threats by promotion or demotion"""
 
-        threat = False
-        for effect in action.effect:
-            if self.is_a_threat(causal_link[1], effect):
-                threat = True
-                break
+        threat = any(
+            self.is_a_threat(causal_link[1], effect) for effect in action.effect
+        )
 
         if action != causal_link[0] and action != causal_link[2] and threat:
             # try promotion
@@ -1274,13 +1256,11 @@ class PartialOrderPlanner:
     def convert(self, constraints):
         """Convert constraints into a dict of Action to set orderings"""
 
-        graph = dict()
+        graph = {}
         for constraint in constraints:
-            if constraint[0] in graph:
-                graph[constraint[0]].add(constraint[1])
-            else:
+            if constraint[0] not in graph:
                 graph[constraint[0]] = set()
-                graph[constraint[0]].add(constraint[1])
+            graph[constraint[0]].add(constraint[1])
         return graph
 
     def toposort(self, graph):
@@ -1298,7 +1278,12 @@ class PartialOrderPlanner:
 
         graph.update({element: set() for element in extra_elements_in_dependencies})
         while True:
-            ordered = set(element for element, dependency in graph.items() if len(dependency) == 0)
+            ordered = {
+                element
+                for element, dependency in graph.items()
+                if len(dependency) == 0
+            }
+
             if not ordered:
                 break
             yield ordered
@@ -1445,12 +1430,14 @@ class HLA(Action):
         resource checks, and ensures the actions are executed in the correct order.
         """
         if not self.has_usable_resource(available_resources):
-            raise Exception('Not enough usable resources to execute {}'.format(self.name))
+            raise Exception(f'Not enough usable resources to execute {self.name}')
         if not self.has_consumable_resource(available_resources):
-            raise Exception('Not enough consumable resources to execute {}'.format(self.name))
+            raise Exception(f'Not enough consumable resources to execute {self.name}')
         if not self.inorder(job_order):
-            raise Exception("Can't execute {} - execute prerequisite actions first".
-                            format(self.name))
+            raise Exception(
+                f"Can't execute {self.name} - execute prerequisite actions first"
+            )
+
         kb = super().act(kb, args)  # update knowledge base
         for resource in self.consumes:  # remove consumed resources
             available_resources[resource] -= self.consumes[resource]
@@ -1520,7 +1507,7 @@ class RealWorldPlanningProblem(PlanningProblem):
         args = action.args
         list_action = first(a for a in self.actions if a.name == action.name)
         if list_action is None:
-            raise Exception("Action '{}' not found".format(action.name))
+            raise Exception(f"Action '{action.name}' not found")
         self.initial = list_action.do_action(self.jobs, self.resources, self.initial, args).clauses
 
     def refinements(self, library):  # refinements may be (multiple) HLA themselves ...
@@ -1590,19 +1577,19 @@ class RealWorldPlanningProblem(PlanningProblem):
             outcome = RealWorldPlanningProblem(
                 RealWorldPlanningProblem.result(self.initial, prefix), self.goals, self.actions)
             suffix = plan.action[index + 1:]
-            if not hla:  # hla is None and plan is primitive
-                if outcome.goal_test():
-                    return plan.action
-            else:
+            if hla:
                 for sequence in RealWorldPlanningProblem.refinements(hla, hierarchy):  # find refinements
                     frontier.append(Node(outcome.initial, plan, prefix + sequence + suffix))
 
-    def result(state, actions):
+            elif outcome.goal_test():
+                return plan.action
+
+    def result(self, actions):
         """The outcome of applying an action to the current problem"""
         for a in actions:
-            if a.check_precond(state, a.args):
-                state = a(state, a.args).clauses
-        return state
+            if a.check_precond(self, a.args):
+                self = a(self, a.args).clauses
+        return self
 
     def angelic_search(self, hierarchy, initial_plan):
         """
@@ -1630,7 +1617,7 @@ class RealWorldPlanningProblem(PlanningProblem):
             pes_reachable_set = RealWorldPlanningProblem.reach_pes(self.initial, plan)
             if self.intersects_goal(opt_reachable_set):
                 if RealWorldPlanningProblem.is_primitive(plan, hierarchy):
-                    return [x for x in plan.action]
+                    return list(plan.action)
                 guaranteed = self.intersects_goal(pes_reachable_set)
                 if guaranteed and RealWorldPlanningProblem.making_progress(plan, initial_plan):
                     final_state = guaranteed[0]  # any element of guaranteed
@@ -1653,68 +1640,70 @@ class RealWorldPlanningProblem(PlanningProblem):
                 for y in reachable_set[x]
                 if all(goal in y for goal in self.goals)]
 
-    def is_primitive(plan, library):
+    def is_primitive(self, library):
         """
         checks if the hla is primitive action
         """
-        for hla in plan.action:
+        for hla in self.action:
             indices = [i for i, x in enumerate(library['HLA']) if expr(x).op == hla.name]
             for i in indices:
                 if library["steps"][i]:
                     return False
         return True
 
-    def reach_opt(init, plan):
+    def reach_opt(self, plan):
         """
         Finds the optimistic reachable set of the sequence of actions in plan
         """
-        reachable_set = {0: [init]}
+        reachable_set = {0: [self]}
         optimistic_description = plan.action  # list of angelic actions with optimistic description
         return RealWorldPlanningProblem.find_reachable_set(reachable_set, optimistic_description)
 
-    def reach_pes(init, plan):
+    def reach_pes(self, plan):
         """
         Finds the pessimistic reachable set of the sequence of actions in plan
         """
-        reachable_set = {0: [init]}
+        reachable_set = {0: [self]}
         pessimistic_description = plan.action_pes  # list of angelic actions with pessimistic description
         return RealWorldPlanningProblem.find_reachable_set(reachable_set, pessimistic_description)
 
-    def find_reachable_set(reachable_set, action_description):
+    def find_reachable_set(self, action_description):
         """
         Finds the reachable states of the action_description when applied in each state of reachable set.
         """
         for i in range(len(action_description)):
-            reachable_set[i + 1] = []
+            self[i + 1] = []
             if type(action_description[i]) is AngelicHLA:
                 possible_actions = action_description[i].angelic_action()
             else:
                 possible_actions = action_description
             for action in possible_actions:
-                for state in reachable_set[i]:
+                for state in self[i]:
                     if action.check_precond(state, action.args):
                         if action.effect[0]:
                             new_state = action(state, action.args).clauses
-                            reachable_set[i + 1].append(new_state)
+                            self[i + 1].append(new_state)
                         else:
-                            reachable_set[i + 1].append(state)
-        return reachable_set
+                            self[i + 1].append(state)
+        return self
 
-    def find_hla(plan, hierarchy):
+    def find_hla(self, hierarchy):
         """
         Finds the the first HLA action in plan.action, which is not primitive
         and its corresponding index in plan.action
         """
         hla = None
-        index = len(plan.action)
-        for i in range(len(plan.action)):  # find the first HLA in plan, that is not primitive
-            if not RealWorldPlanningProblem.is_primitive(Node(plan.state, plan.parent, [plan.action[i]]), hierarchy):
-                hla = plan.action[i]
+        index = len(self.action)
+        for i in range(len(self.action)):  # find the first HLA in plan, that is not primitive
+            if not RealWorldPlanningProblem.is_primitive(
+                Node(self.state, self.parent, [self.action[i]]), hierarchy
+            ):
+                hla = self.action[i]
                 index = i
                 break
         return hla, index
 
-    def making_progress(plan, initial_plan):
+    def making_progress(self, initial_plan):
         """
         Prevents from infinite regression of refinements
 
@@ -1722,12 +1711,9 @@ class RealWorldPlanningProblem(PlanningProblem):
         its pessimistic reachable set intersects the goal inside a call to decompose on
         the same plan, in the same circumstances)
         """
-        for i in range(len(initial_plan)):
-            if plan == initial_plan[i]:
-                return False
-        return True
+        return all(self != initial_plan[i] for i in range(len(initial_plan)))
 
-    def decompose(hierarchy, plan, s_f, reachable_set):
+    def decompose(self, plan, s_f, reachable_set):
         solution = []
         i = max(reachable_set.keys())
         while plan.action_pes:
@@ -1736,26 +1722,32 @@ class RealWorldPlanningProblem(PlanningProblem):
                 return solution
             s_i = RealWorldPlanningProblem.find_previous_state(s_f, reachable_set, i, action)
             problem = RealWorldPlanningProblem(s_i, s_f, plan.action)
-            angelic_call = RealWorldPlanningProblem.angelic_search(problem, hierarchy,
-                                                                   [AngelicNode(s_i, Node(None), [action], [action])])
-            if angelic_call:
-                for x in angelic_call:
-                    solution.insert(0, x)
-            else:
+            if not (
+                angelic_call := RealWorldPlanningProblem.angelic_search(
+                    problem,
+                    self,
+                    [AngelicNode(s_i, Node(None), [action], [action])],
+                )
+            ):
                 return None
+            for x in angelic_call:
+                solution.insert(0, x)
             s_f = s_i
             i -= 1
         return solution
 
-    def find_previous_state(s_f, reachable_set, i, action):
+    def find_previous_state(self, reachable_set, i, action):
         """
         Given a final state s_f and an action finds a state s_i in reachable_set
         such that when action is applied to state s_i returns s_f.
         """
         s_i = reachable_set[i - 1][0]
         for state in reachable_set[i - 1]:
-            if s_f in [x for x in RealWorldPlanningProblem.reach_pes(
-                    state, AngelicNode(state, None, [action], [action]))[1]]:
+            if self in list(
+                RealWorldPlanningProblem.reach_pes(
+                    state, AngelicNode(state, None, [action], [action])
+                )[1]
+            ):
                 s_i = state
                 break
         return s_i
@@ -1881,13 +1873,12 @@ class AngelicHLA(HLA):
 
         if isinstance(clauses, Expr):
             clauses = conjuncts(clauses)
-            for i in range(len(clauses)):
-                for ch in lib.keys():
-                    if clauses[i].op == ch:
-                        clauses[i] = expr(lib[ch] + str(clauses[i].args[0]))
+            for i, ch in itertools.product(range(len(clauses)), lib):
+                if clauses[i].op == ch:
+                    clauses[i] = expr(lib[ch] + str(clauses[i].args[0]))
 
         elif isinstance(clauses, str):
-            for ch in lib.keys():
+            for ch in lib:
                 clauses = clauses.replace(ch, lib[ch])
             if len(clauses) > 0:
                 clauses = expr(clauses)
@@ -1943,32 +1934,36 @@ class AngelicHLA(HLA):
             for i in it:
                 if effects[i]:
                     if clause.args:
-                        effects[i] = expr(str(effects[i]) + '&' + str(
-                            Expr(clause.op[w:], clause.args[0])))  # make changes in the ith part of effects
-                        if n == 3:
-                            effects[i + len(effects) // 3] = expr(
-                                str(effects[i + len(effects) // 3]) + '&' + str(Expr(clause.op[6:], clause.args[0])))
-                    else:
                         effects[i] = expr(
-                            str(effects[i]) + '&' + str(expr(clause.op[w:])))  # make changes in the ith part of effects
+                            f'{str(effects[i])}&{str(Expr(clause.op[w:], clause.args[0]))}'
+                        )
+
                         if n == 3:
                             effects[i + len(effects) // 3] = expr(
-                                str(effects[i + len(effects) // 3]) + '&' + str(expr(clause.op[6:])))
+                                f'{str(effects[i + len(effects) // 3])}&{str(Expr(clause.op[6:], clause.args[0]))}'
+                            )
+
+                    else:
+                        effects[i] = expr(f'{str(effects[i])}&{str(expr(clause.op[w:]))}')
+                        if n == 3:
+                            effects[i + len(effects) // 3] = expr(
+                                f'{str(effects[i + len(effects) // 3])}&{str(expr(clause.op[6:]))}'
+                            )
+
+
+                elif clause.args:
+                    effects[i] = Expr(clause.op[w:], clause.args[0])  # make changes in the ith part of effects
+                    if n == 3:
+                        effects[i + len(effects) // 3] = Expr(clause.op[6:], clause.args[0])
 
                 else:
-                    if clause.args:
-                        effects[i] = Expr(clause.op[w:], clause.args[0])  # make changes in the ith part of effects
-                        if n == 3:
-                            effects[i + len(effects) // 3] = Expr(clause.op[6:], clause.args[0])
-
-                    else:
-                        effects[i] = expr(clause.op[w:])  # make changes in the ith part of effects
-                        if n == 3:
-                            effects[i + len(effects) // 3] = expr(clause.op[6:])
+                    effects[i] = expr(clause.op[w:])  # make changes in the ith part of effects
+                    if n == 3:
+                        effects[i + len(effects) // 3] = expr(clause.op[6:])
 
         return [HLA(Expr(self.name, self.args), self.precond, effects[i]) for i in range(len(effects))]
 
-    def compute_parameters(clause):
+    def compute_parameters(self):
         """
         computes n,w
 
@@ -1982,14 +1977,14 @@ class AngelicHLA(HLA):
                     n = 3, if effect is possibly add or remove
 
         """
-        if clause.op[:9] == 'PosYesNot':
+        if self.op[:9] == 'PosYesNot':
             # possibly add/remove variable: three possible effects for the variable
             n = 3
             w = 9
-        elif clause.op[:6] == 'PosYes':  # possibly add variable: two possible effects for the variable
+        elif self.op[:6] == 'PosYes':  # possibly add variable: two possible effects for the variable
             n = 2
             w = 6
-        elif clause.op[:6] == 'PosNot':  # possibly remove variable: two possible effects for the variable
+        elif self.op[:6] == 'PosNot':  # possibly remove variable: two possible effects for the variable
             n = 2
             w = 3  # We want to keep 'Not' from 'PosNot' when adding action
         else:  # variable or ~variable

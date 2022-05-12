@@ -20,7 +20,11 @@ import numpy as np
 
 def sequence(iterable):
     """Converts iterable to sequence, if it is not already one."""
-    return iterable if isinstance(iterable, collections.abc.Sequence) else tuple([iterable])
+    return (
+        iterable
+        if isinstance(iterable, collections.abc.Sequence)
+        else (iterable,)
+    )
 
 
 def remove_all(item, seq):
@@ -190,8 +194,7 @@ def weighted_sample_with_replacement(n, seq, weights):
 def weighted_sampler(seq, weights):
     """Return a random-sample function that picks from seq weighted by weights."""
     totals = []
-    for w in weights:
-        totals.append(w + totals[-1] if totals else w)
+    totals.extend(w + totals[-1] if totals else w for w in weights)
     return lambda: seq[bisect.bisect(totals, random.uniform(0, totals[-1]))]
 
 
@@ -212,9 +215,8 @@ def rounder(numbers, d=4):
     """Round a single number, or sequence of numbers, to d decimal places."""
     if isinstance(numbers, (int, float)):
         return round(numbers, d)
-    else:
-        constructor = type(numbers)  # Can be list, set, tuple, etc.
-        return constructor(rounder(n, d) for n in numbers)
+    constructor = type(numbers)  # Can be list, set, tuple, etc.
+    return constructor(rounder(n, d) for n in numbers)
 
 
 def num_or_str(x):  # TODO: rename as `atom`
@@ -413,10 +415,9 @@ def memoize(fn, slot=None, maxsize=32):
         def memoized_fn(obj, *args):
             if hasattr(obj, slot):
                 return getattr(obj, slot)
-            else:
-                val = fn(obj, *args)
-                setattr(obj, slot, val)
-                return val
+            val = fn(obj, *args)
+            setattr(obj, slot, val)
+            return val
     else:
         @functools.lru_cache(maxsize=maxsize)
         def memoized_fn(*args):
@@ -612,12 +613,12 @@ class Expr:
         op = self.op
         args = [str(arg) for arg in self.args]
         if op.isidentifier():  # f(x) or f(x, y)
-            return '{}({})'.format(op, ', '.join(args)) if args else op
+            return f"{op}({', '.join(args)})" if args else op
         elif len(args) == 1:  # -x or -(x + 1)
             return op + args[0]
         else:  # (x - y)
-            opp = (' ' + op + ' ')
-            return '(' + opp.join(args) + ')'
+            opp = f' {op} '
+            return f'({opp.join(args)})'
 
 
 # An 'Expression' is either an Expr or a Number.
@@ -648,10 +649,7 @@ def subexpressions(x):
 
 def arity(expression):
     """The number of sub-expressions in this expression."""
-    if isinstance(expression, Expr):
-        return len(expression.args)
-    else:  # expression is a number
-        return 0
+    return len(expression.args) if isinstance(expression, Expr) else 0
 
 
 # For operators that are not defined in Python, we allow new InfixOps:
@@ -667,7 +665,7 @@ class PartialExpr:
         return Expr(self.op, self.lhs, rhs)
 
     def __repr__(self):
-        return "PartialExpr('{}', {})".format(self.op, self.lhs)
+        return f"PartialExpr('{self.op}', {self.lhs})"
 
 
 def expr(x):
@@ -690,7 +688,7 @@ def expr_handle_infix_ops(x):
     "P |'==>'| Q"
     """
     for op in infix_ops:
-        x = x.replace(op, '|' + repr(op) + '|')
+        x = x.replace(op, f'|{repr(op)}|')
     return x
 
 
@@ -758,7 +756,7 @@ class PriorityQueue:
 
     def __contains__(self, key):
         """Return True if the key is in PriorityQueue."""
-        return any([item == key for _, item in self.heap])
+        return any(item == key for _, item in self.heap)
 
     def __getitem__(self, key):
         """Returns the first value associated with key in PriorityQueue.
@@ -766,14 +764,14 @@ class PriorityQueue:
         for value, item in self.heap:
             if item == key:
                 return value
-        raise KeyError(str(key) + " is not in the priority queue")
+        raise KeyError(f"{str(key)} is not in the priority queue")
 
     def __delitem__(self, key):
         """Delete the first occurrence of key."""
         try:
             del self.heap[[item == key for _, item in self.heap].index(True)]
         except ValueError:
-            raise KeyError(str(key) + " is not in the priority queue")
+            raise KeyError(f"{str(key)} is not in the priority queue")
         heapq.heapify(self.heap)
 
 
